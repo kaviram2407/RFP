@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.api import deps
+from app.api.routes import auth
 from app.core.config import settings
 import redis
 import logging
@@ -10,6 +11,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.APP_NAME)
+
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+
 
 @app.get("/health")
 def health_check(db: Session = Depends(deps.get_db)):

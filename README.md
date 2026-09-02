@@ -73,16 +73,28 @@ You can verify the backend is running and connected to services via the health c
 curl http://localhost:8000/health
 ```
 
-Expected output when healthy:
-```json
-{
-  "status": "ok",
-  "services": {
-    "api": "ok",
-    "database": "ok",
-    "redis": "ok"
-  }
-}
+### Authentication & Development Users
+
+The API is secured using JWT Bearer tokens and role-based access control (RBAC).
+To create a development user, use the provided script:
+
+```bash
+cd backend
+source .venv/bin/activate
+python scripts/create_dev_user.py --email dev@example.com --password password123 --org-name "Dev Org" --org-slug "dev-org" --role PRODUCT_TEAM
+```
+
+You can obtain an access token and check current user status:
+```bash
+curl -X POST http://localhost:8000/auth/login -d "username=dev@example.com&password=password123"
+curl -H "Authorization: Bearer <token>" http://localhost:8000/auth/me
+```
+
+### Running Tests
+To verify authentication, RBAC, and tenant isolation boundaries:
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/pytest tests
 ```
 
 ### Stop infrastructure
@@ -90,3 +102,4 @@ Expected output when healthy:
 ```bash
 docker compose down
 ```
+
