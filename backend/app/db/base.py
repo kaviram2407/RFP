@@ -6,3 +6,4 @@ from app.models.user import User
 from app.models.rfp_project import RFPProject
 from app.models.rfp_document import RFPDocument, DocumentVersion, DocumentContent, DocumentContentBlock
 from app.models.requirement import Requirement, RequirementEvidence
+from app.models.company_knowledge import CompanyKnowledgeDocument, KnowledgeDocumentVersion, KnowledgeChunk

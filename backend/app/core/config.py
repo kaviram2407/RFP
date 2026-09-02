@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     REQUIREMENT_EXTRACTION_CONFIDENCE_THRESHOLD: float = 0.7
     REQUIREMENT_EXTRACTION_CONTEXT_SIZE: int = 8000
 
+    # NVIDIA Embeddings & RAG Retrieval
+    NVIDIA_EMBEDDING_MODEL: str = "nvidia/nemotron-3-embed-1b"
+    NVIDIA_EMBEDDING_DIMENSIONS: int = 2048
+    HYBRID_SEARCH_SEMANTIC_WEIGHT: float = 0.70
+    HYBRID_SEARCH_LEXICAL_WEIGHT: float = 0.30
+
+
 
 
 

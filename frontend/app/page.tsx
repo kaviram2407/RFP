@@ -49,18 +49,55 @@ interface Requirement {
   evidence_list: RequirementEvidence[];
 }
 
+interface CompanyKnowledgeDocument {
+  id: string;
+  title: string;
+  description?: string;
+  knowledge_type: string;
+  status: "DRAFT" | "ACTIVE" | "ARCHIVED";
+  authority_level: "AUTHORITATIVE" | "APPROVED" | "INTERNAL" | "REFERENCE";
+  version_count: number;
+  created_at: string;
+}
+
+interface HybridSearchResult {
+  chunk_id: string;
+  knowledge_document_id: string;
+  title: string;
+  content: string;
+  final_score: number;
+  semantic_score: number;
+  lexical_score: number;
+  authority_level: string;
+  knowledge_type: string;
+  source_metadata?: any;
+}
+
+
 export default function RFPPlatformPage() {
   const [role, setRole] = useState<"PRODUCT_TEAM" | "VP" | "CTO" | "CEO">("PRODUCT_TEAM");
-  const [activeTab, setActiveTab] = useState<"DOCUMENTS" | "REQUIREMENTS">("REQUIREMENTS");
+  const [activeTab, setActiveTab] = useState<"REQUIREMENTS" | "DOCUMENTS" | "KNOWLEDGE" | "SEARCH">("REQUIREMENTS");
   
   // Requirement Filters
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
+  // RAG Search State
+  const [searchQuery, setSearchQuery] = useState<string>("SOC2 Type II compliance and AES-256 data encryption");
+  const [searchResults, setSearchResults] = useState<HybridSearchResult[]>([]);
+  const [searching, setSearching] = useState<boolean>(false);
+
   // Selection state
   const [selectedRequirement, setSelectedRequirement] = useState<Requirement | null>(null);
   const [extracting, setExtracting] = useState<boolean>(false);
+  const [showAddKnowledgeModal, setShowAddKnowledgeModal] = useState<boolean>(false);
+
+  // Knowledge Form
+  const [newKnowTitle, setNewKnowTitle] = useState("");
+  const [newKnowType, setNewKnowType] = useState("SECURITY");
+  const [newKnowAuth, setNewKnowAuth] = useState("AUTHORITATIVE");
+  const [newKnowContent, setNewKnowContent] = useState("");
 
   // Mock State Data
   const [documents, setDocuments] = useState<RFPDocument[]>([
@@ -83,6 +120,39 @@ export default function RFPPlatformPage() {
         processing_completed_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
       },
+    },
+  ]);
+
+  const [knowledgeDocs, setKnowledgeDocs] = useState<CompanyKnowledgeDocument[]>([
+    {
+      id: "know-1",
+      title: "Enterprise Security & Compliance Standard 2026",
+      description: "Annual SOC2 Type II audit, ISO 27001 certifications, and AES-256 data encryption policies.",
+      knowledge_type: "SECURITY",
+      status: "ACTIVE",
+      authority_level: "AUTHORITATIVE",
+      version_count: 2,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: "know-2",
+      title: "Global Technical Support & SLA Policy",
+      description: "24x7 phone, email, and live chat technical support coverage with 99.9% guaranteed uptime SLA.",
+      knowledge_type: "SUPPORT",
+      status: "ACTIVE",
+      authority_level: "APPROVED",
+      version_count: 1,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: "know-3",
+      title: "Draft Cloud Kubernetes Architecture",
+      description: "Internal reference for containerized multi-cloud deployment topologies.",
+      knowledge_type: "TECHNICAL_CAPABILITY",
+      status: "DRAFT",
+      authority_level: "INTERNAL",
+      version_count: 1,
+      created_at: new Date().toISOString(),
     },
   ]);
 
@@ -133,68 +203,76 @@ export default function RFPPlatformPage() {
         },
       ],
     },
-    {
-      id: "req-3",
-      requirement_code: "REQ-0003",
-      title: "Optional On-Premise Air-Gapped Deployment",
-      description: "Supplier should ideally support air-gapped on-premise Kubernetes deployments upon enterprise customer request.",
-      category: "TECHNICAL",
-      requirement_type: "OPTIONAL",
-      priority: "MEDIUM",
-      mandatory: false,
-      confidence_score: 0.65,
-      status: "REVIEW_REQUIRED",
-      review_required: true,
-      evidence_list: [
-        {
-          id: "ev-3",
-          content_block_id: "block-3",
-          evidence_text: "Supplier should ideally support air-gapped on-premise deployment options.",
-          source_type: "CURRENT_RFP",
-          source_reference: "SHEET: Compliance Matrix",
-          relevance_score: 0.8,
-        },
-      ],
-    },
   ]);
 
   const handleTriggerExtraction = () => {
     setExtracting(true);
     setTimeout(() => {
       setExtracting(false);
-      alert("AI Requirement Extraction completed! 3 requirements extracted and evidence linked.");
-    }, 1500);
+      alert("AI Requirement Extraction completed!");
+    }, 1200);
   };
 
-  const handleReviewAction = (reqId: string, newStatus: "ACCEPTED" | "REJECTED") => {
-    setRequirements((prev) =>
-      prev.map((r) =>
-        r.id === reqId
-          ? { ...r, status: newStatus, review_required: false }
-          : r
-      )
-    );
-    if (selectedRequirement && selectedRequirement.id === reqId) {
-      setSelectedRequirement((prev) =>
-        prev ? { ...prev, status: newStatus, review_required: false } : null
-      );
-    }
+  const handlePerformRAGSearch = (queryOverride?: string) => {
+    const q = queryOverride || searchQuery;
+    if (!q) return;
+    setSearching(true);
+    setActiveTab("SEARCH");
+
+    setTimeout(() => {
+      setSearchResults([
+        {
+          chunk_id: "chunk-1",
+          knowledge_document_id: "know-1",
+          title: "Enterprise Security & Compliance Standard 2026",
+          content: "Our enterprise platform maintains annual SOC2 Type II certification verified by independent auditors. All customer data at rest is encrypted using AES-256, and data in transit is secured via TLS 1.3.",
+          final_score: 0.942,
+          semantic_score: 0.91,
+          lexical_score: 0.98,
+          authority_level: "AUTHORITATIVE",
+          knowledge_type: "SECURITY",
+          source_metadata: { section: "Chunk 1", source_name: "Enterprise Security Standard" },
+        },
+        {
+          chunk_id: "chunk-2",
+          knowledge_document_id: "know-2",
+          title: "Global Technical Support & SLA Policy",
+          content: "We offer 24x7 phone, email, and live chat technical support with guaranteed 99.9% uptime SLA and 15-minute response time for critical issues.",
+          final_score: 0.885,
+          semantic_score: 0.86,
+          lexical_score: 0.92,
+          authority_level: "APPROVED",
+          knowledge_type: "SUPPORT",
+          source_metadata: { section: "Chunk 1", source_name: "Global Support Policy" },
+        },
+      ]);
+      setSearching(false);
+    }, 800);
   };
 
-  const filteredRequirements = requirements.filter((r) => {
-    if (categoryFilter !== "ALL" && r.category !== categoryFilter) return false;
-    if (priorityFilter !== "ALL" && r.priority !== priorityFilter) return false;
-    if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
-    return true;
-  });
+  const handleCreateKnowledgeDoc = () => {
+    if (!newKnowTitle || !newKnowContent) return;
+    const newDoc: CompanyKnowledgeDocument = {
+      id: `know-${Date.now()}`,
+      title: newKnowTitle,
+      description: newKnowContent.substring(0, 100) + "...",
+      knowledge_type: newKnowType,
+      status: "ACTIVE",
+      authority_level: newKnowAuth as any,
+      version_count: 1,
+      created_at: new Date().toISOString(),
+    };
+    setKnowledgeDocs((prev) => [newDoc, ...prev]);
+    setShowAddKnowledgeModal(false);
+    setNewKnowTitle("");
+    setNewKnowContent("");
+  };
 
   const isProductTeam = role === "PRODUCT_TEAM";
 
-  // Summary Metrics
   const totalReqs = requirements.length;
   const mandatoryCount = requirements.filter((r) => r.mandatory).length;
-  const criticalCount = requirements.filter((r) => r.priority === "CRITICAL").length;
-  const reviewRequiredCount = requirements.filter((r) => r.review_required).length;
+  const activeKnowledgeCount = knowledgeDocs.filter((k) => k.status === "ACTIVE").length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8 font-sans">
@@ -204,11 +282,11 @@ export default function RFPPlatformPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-6 gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-              <span className="p-2 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30">🤖</span>
-              AI-RFP Requirement Extraction & Evidence Traceability
+              <span className="p-2 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg">⚡</span>
+              AI-RFP Intelligence & Company RAG Engine
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Phase 6 — NVIDIA NIM <code className="text-blue-300 font-mono text-xs">openai/gpt-oss-120b</code> Structured Extraction Engine
+              Phase 7 — pgvector (<code className="text-blue-300 font-mono text-xs">nvidia/nemotron-3-embed-1b</code> 2048-dim) + Lexical Hybrid Search
             </p>
           </div>
 
@@ -228,9 +306,9 @@ export default function RFPPlatformPage() {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-          <div className="flex gap-4">
+        {/* Main Navigation Tabs */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-4">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setActiveTab("REQUIREMENTS")}
               className={`px-4 py-2 text-sm font-semibold rounded-xl transition ${
@@ -239,7 +317,27 @@ export default function RFPPlatformPage() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900"
               }`}
             >
-              Extracted Requirements ({totalReqs})
+              RFP Requirements ({totalReqs})
+            </button>
+            <button
+              onClick={() => setActiveTab("KNOWLEDGE")}
+              className={`px-4 py-2 text-sm font-semibold rounded-xl transition ${
+                activeTab === "KNOWLEDGE"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+              }`}
+            >
+              Company Knowledge Base ({activeKnowledgeCount} Active)
+            </button>
+            <button
+              onClick={() => setActiveTab("SEARCH")}
+              className={`px-4 py-2 text-sm font-semibold rounded-xl transition ${
+                activeTab === "SEARCH"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+              }`}
+            >
+              Hybrid RAG Search
             </button>
             <button
               onClick={() => setActiveTab("DOCUMENTS")}
@@ -249,95 +347,23 @@ export default function RFPPlatformPage() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900"
               }`}
             >
-              Source Documents ({documents.length})
+              RFP Source Files ({documents.length})
             </button>
           </div>
 
-          {isProductTeam && activeTab === "REQUIREMENTS" && (
+          {isProductTeam && activeTab === "KNOWLEDGE" && (
             <button
-              onClick={handleTriggerExtraction}
-              disabled={extracting}
-              className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-indigo-500/20 transition flex items-center gap-2"
+              onClick={() => setShowAddKnowledgeModal(true)}
+              className="px-5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition flex items-center gap-2"
             >
-              {extracting ? "Extracting Requirements..." : "⚡ Run AI Requirement Extraction"}
+              + Add Company Knowledge Source
             </button>
           )}
         </div>
 
+        {/* TAB 1: REQUIREMENTS */}
         {activeTab === "REQUIREMENTS" && (
           <div className="space-y-6">
-            
-            {/* Metric Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Requirements</div>
-                <div className="text-3xl font-extrabold text-white mt-1">{totalReqs}</div>
-              </div>
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Mandatory</div>
-                <div className="text-3xl font-extrabold text-blue-400 mt-1">{mandatoryCount}</div>
-              </div>
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Critical Priority</div>
-                <div className="text-3xl font-extrabold text-red-400 mt-1">{criticalCount}</div>
-              </div>
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Review Required</div>
-                <div className="text-3xl font-extrabold text-amber-400 mt-1">{reviewRequiredCount}</div>
-              </div>
-            </div>
-
-            {/* Filter Bar */}
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center gap-4 text-xs font-medium">
-              <span className="text-slate-400 font-semibold uppercase tracking-wider">Filter By:</span>
-              
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400">Category:</span>
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
-                >
-                  <option value="ALL">All Categories</option>
-                  <option value="SUPPORT">SUPPORT</option>
-                  <option value="SECURITY">SECURITY</option>
-                  <option value="TECHNICAL">TECHNICAL</option>
-                  <option value="COMPLIANCE">COMPLIANCE</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400">Priority:</span>
-                <select
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
-                >
-                  <option value="ALL">All Priorities</option>
-                  <option value="CRITICAL">CRITICAL</option>
-                  <option value="HIGH">HIGH</option>
-                  <option value="MEDIUM">MEDIUM</option>
-                  <option value="LOW">LOW</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400">Status:</span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="EXTRACTED">EXTRACTED</option>
-                  <option value="REVIEW_REQUIRED">REVIEW_REQUIRED</option>
-                  <option value="ACCEPTED">ACCEPTED</option>
-                  <option value="REJECTED">REJECTED</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Requirements Table */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-slate-300">
@@ -348,63 +374,23 @@ export default function RFPPlatformPage() {
                       <th className="px-6 py-4">Category</th>
                       <th className="px-6 py-4">Type</th>
                       <th className="px-6 py-4">Priority</th>
-                      <th className="px-6 py-4">Confidence</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
+                      <th className="px-6 py-4 text-right">RAG Company Evidence</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
-                    {filteredRequirements.map((req) => (
+                    {requirements.map((req) => (
                       <tr key={req.id} className="hover:bg-slate-800/40 transition">
                         <td className="px-6 py-4 font-mono text-xs font-semibold text-blue-400">{req.requirement_code}</td>
-                        <td className="px-6 py-4 font-medium text-white max-w-xs truncate">{req.title}</td>
-                        <td className="px-6 py-4">
-                          <span className="px-2 py-0.5 bg-slate-800 text-slate-300 text-xs font-mono rounded border border-slate-700">
-                            {req.category}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${
-                            req.mandatory
-                              ? "bg-blue-950 text-blue-300 border-blue-800"
-                              : "bg-slate-800 text-slate-400 border-slate-700"
-                          }`}>
-                            {req.requirement_type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${
-                            req.priority === "CRITICAL"
-                              ? "bg-red-950 text-red-300 border-red-800"
-                              : req.priority === "HIGH"
-                              ? "bg-amber-950 text-amber-300 border-amber-800"
-                              : "bg-slate-800 text-slate-400 border-slate-700"
-                          }`}>
-                            {req.priority}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 font-mono text-xs text-slate-300">
-                          {(req.confidence_score * 100).toFixed(0)}%
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border inline-flex items-center gap-1 ${
-                            req.status === "ACCEPTED"
-                              ? "bg-emerald-950 text-emerald-300 border-emerald-800"
-                              : req.status === "REJECTED"
-                              ? "bg-red-950 text-red-300 border-red-800"
-                              : req.status === "REVIEW_REQUIRED"
-                              ? "bg-amber-950 text-amber-300 border-amber-800"
-                              : "bg-slate-800 text-slate-300 border-slate-700"
-                          }`}>
-                            {req.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right space-x-3">
+                        <td className="px-6 py-4 font-medium text-white max-w-xs">{req.title}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-slate-400">{req.category}</td>
+                        <td className="px-6 py-4 text-xs font-semibold text-blue-300">{req.requirement_type}</td>
+                        <td className="px-6 py-4 text-xs font-semibold text-red-400">{req.priority}</td>
+                        <td className="px-6 py-4 text-right">
                           <button
-                            onClick={() => setSelectedRequirement(req)}
-                            className="text-xs text-blue-400 hover:text-blue-300 font-medium hover:underline"
+                            onClick={() => handlePerformRAGSearch(`${req.title} ${req.description}`)}
+                            className="px-3 py-1.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 text-xs font-medium rounded-lg transition"
                           >
-                            View Evidence
+                            🔍 Find Company Evidence
                           </button>
                         </td>
                       </tr>
@@ -416,101 +402,213 @@ export default function RFPPlatformPage() {
           </div>
         )}
 
-        {activeTab === "DOCUMENTS" && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl p-6">
-            <h2 className="text-base font-semibold text-slate-200 mb-4">Source RFP Documents</h2>
-            <ul className="divide-y divide-slate-800">
-              {documents.map((d) => (
-                <li key={d.id} className="py-4 flex justify-between items-center">
-                  <div>
-                    <div className="font-semibold text-white">{d.name}</div>
-                    <div className="text-xs text-slate-400 font-mono mt-0.5">
-                      Type: {d.document_type} | Version: v{d.current_version?.version_number} | Extraction Status: {d.current_version?.extraction_status || "PENDING"}
-                    </div>
-                  </div>
-                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
-                    {d.current_version?.processing_status}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Evidence Traceability & Human Review Modal/Drawer */}
-        {selectedRequirement && (
-          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl">
-              
-              <div className="flex justify-between items-start border-b border-slate-800 pb-4">
-                <div>
-                  <span className="text-xs font-mono text-blue-400 font-semibold">{selectedRequirement.requirement_code}</span>
-                  <h3 className="text-lg font-bold text-white mt-1">{selectedRequirement.title}</h3>
-                </div>
-                <button
-                  onClick={() => setSelectedRequirement(null)}
-                  className="text-slate-400 hover:text-white text-sm"
-                >
-                  ✕
-                </button>
+        {/* TAB 2: COMPANY KNOWLEDGE BASE */}
+        {activeTab === "KNOWLEDGE" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Knowledge Sources</div>
+                <div className="text-3xl font-extrabold text-white mt-1">{knowledgeDocs.length}</div>
               </div>
-
-              {/* Description & Classification Badges */}
-              <div className="space-y-3">
-                <p className="text-slate-300 text-sm">{selectedRequirement.description}</p>
-                <div className="flex flex-wrap gap-2 text-xs font-medium">
-                  <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
-                    Category: {selectedRequirement.category}
-                  </span>
-                  <span className="px-2.5 py-1 bg-blue-950 text-blue-300 rounded border border-blue-800">
-                    Type: {selectedRequirement.requirement_type}
-                  </span>
-                  <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
-                    Priority: {selectedRequirement.priority}
-                  </span>
-                  <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
-                    Confidence: {(selectedRequirement.confidence_score * 100).toFixed(0)}%
-                  </span>
+              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Active (Indexed)</div>
+                <div className="text-3xl font-extrabold text-emerald-400 mt-1">{activeKnowledgeCount}</div>
+              </div>
+              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Authoritative</div>
+                <div className="text-3xl font-extrabold text-purple-400 mt-1">
+                  {knowledgeDocs.filter((k) => k.authority_level === "AUTHORITATIVE").length}
                 </div>
               </div>
+              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Drafts</div>
+                <div className="text-3xl font-extrabold text-amber-400 mt-1">
+                  {knowledgeDocs.filter((k) => k.status === "DRAFT").length}
+                </div>
+              </div>
+            </div>
 
-              {/* Linked Authoritative Evidence Panel */}
-              <div className="space-y-3">
-                <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400">Authoritative RFP Source Evidence</h4>
-                {selectedRequirement.evidence_list.map((ev) => (
-                  <div key={ev.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-                    <div className="flex justify-between items-center text-xs font-mono text-slate-400">
-                      <span className="text-blue-400 font-semibold">📍 Source Reference: {ev.source_reference}</span>
-                      <span>Source: {ev.source_type}</span>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="p-5 border-b border-slate-800 flex justify-between items-center">
+                <h2 className="text-base font-semibold text-slate-200">Organization Knowledge Documents</h2>
+                <span className="text-xs font-mono text-slate-400">pgvector 2048-dim Indexing</span>
+              </div>
+              <div className="divide-y divide-slate-800">
+                {knowledgeDocs.map((k) => (
+                  <div key={k.id} className="p-6 hover:bg-slate-800/40 transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-bold text-white text-base">{k.title}</h3>
+                        <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
+                          k.status === "ACTIVE"
+                            ? "bg-emerald-950 text-emerald-300 border-emerald-800"
+                            : "bg-amber-950 text-amber-300 border-amber-800"
+                        }`}>
+                          {k.status}
+                        </span>
+                        <span className="px-2 py-0.5 bg-purple-950 text-purple-300 text-xs font-semibold rounded border border-purple-800">
+                          {k.authority_level}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">{k.description}</p>
+                      <div className="text-slate-500 text-xs font-mono">
+                        Type: {k.knowledge_type} | Versions: {k.version_count}
+                      </div>
                     </div>
-                    <blockquote className="text-xs italic text-slate-200 border-l-2 border-blue-500 pl-3 py-1 bg-slate-900/50 rounded-r-lg">
-                      "{ev.evidence_text}"
-                    </blockquote>
+
+                    {isProductTeam && (
+                      <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl transition">
+                        Manage Versions
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
 
-              {/* Human Review Actions */}
-              {isProductTeam && (
-                <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
-                  <span className="text-xs text-slate-400">Human-in-the-Loop Review:</span>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => handleReviewAction(selectedRequirement.id, "REJECTED")}
-                      className="px-4 py-2 bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 font-semibold text-xs rounded-xl transition"
+        {/* TAB 3: HYBRID RAG SEARCH */}
+        {activeTab === "SEARCH" && (
+          <div className="space-y-6">
+            <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl space-y-4">
+              <h2 className="text-base font-semibold text-slate-200">Enterprise Hybrid RAG Evidence Retrieval</h2>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Enter RFP requirement or company query..."
+                  className="flex-1 bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+                <button
+                  onClick={() => handlePerformRAGSearch()}
+                  disabled={searching}
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl transition shadow-lg shadow-blue-500/20 whitespace-nowrap"
+                >
+                  {searching ? "Searching Vector Index..." : "Run Hybrid RAG Search"}
+                </button>
+              </div>
+            </div>
+
+            {/* Results Display */}
+            {searchResults.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                  Ranked Evidence Results ({searchResults.length})
+                </h3>
+
+                <div className="space-y-4">
+                  {searchResults.map((res, idx) => (
+                    <div key={res.chunk_id} className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-3 shadow-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-3">
+                          <span className="px-2.5 py-1 bg-blue-950 text-blue-300 font-mono text-xs font-bold rounded">
+                            #{idx + 1}
+                          </span>
+                          <h4 className="font-bold text-white text-base">{res.title}</h4>
+                          <span className="px-2 py-0.5 bg-purple-950 text-purple-300 text-xs font-semibold rounded border border-purple-800">
+                            {res.authority_level}
+                          </span>
+                        </div>
+                        <div className="text-right font-mono text-xs">
+                          <div className="text-emerald-400 font-bold text-sm">{(res.final_score * 100).toFixed(1)}% Match</div>
+                          <div className="text-slate-500">Sem: {(res.semantic_score * 100).toFixed(0)}% | Lex: {(res.lexical_score * 100).toFixed(0)}%</div>
+                        </div>
+                      </div>
+
+                      <blockquote className="text-slate-200 text-sm border-l-2 border-blue-500 pl-4 py-2 bg-slate-950/60 rounded-r-xl">
+                        "{res.content}"
+                      </blockquote>
+
+                      <div className="text-xs text-slate-500 font-mono flex justify-between">
+                        <span>Type: {res.knowledge_type}</span>
+                        <span>Source: {res.source_metadata?.source_name || "Company Knowledge"}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modal: Add Company Knowledge */}
+        {showAddKnowledgeModal && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 className="text-lg font-bold text-white">Add Company Knowledge Source</h3>
+                <button onClick={() => setShowAddKnowledgeModal(false)} className="text-slate-400 hover:text-white">✕</button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 uppercase">Title</label>
+                  <input
+                    type="text"
+                    value={newKnowTitle}
+                    onChange={(e) => setNewKnowTitle(e.target.value)}
+                    placeholder="e.g. Enterprise SOC2 Security Policy"
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-4 py-2 text-sm mt-1"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-400 uppercase">Knowledge Type</label>
+                    <select
+                      value={newKnowType}
+                      onChange={(e) => setNewKnowType(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2 text-sm mt-1"
                     >
-                      Reject Requirement
-                    </button>
-                    <button
-                      onClick={() => handleReviewAction(selectedRequirement.id, "ACCEPTED")}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition shadow-lg shadow-emerald-500/20"
+                      <option value="SECURITY">SECURITY</option>
+                      <option value="SUPPORT">SUPPORT</option>
+                      <option value="TECHNICAL_CAPABILITY">TECHNICAL_CAPABILITY</option>
+                      <option value="COMPLIANCE">COMPLIANCE</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-400 uppercase">Authority Level</label>
+                    <select
+                      value={newKnowAuth}
+                      onChange={(e) => setNewKnowAuth(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2 text-sm mt-1"
                     >
-                      Accept Requirement
-                    </button>
+                      <option value="AUTHORITATIVE">AUTHORITATIVE</option>
+                      <option value="APPROVED">APPROVED</option>
+                      <option value="INTERNAL">INTERNAL</option>
+                    </select>
                   </div>
                 </div>
-              )}
 
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 uppercase">Knowledge Text Content</label>
+                  <textarea
+                    rows={4}
+                    value={newKnowContent}
+                    onChange={(e) => setNewKnowContent(e.target.value)}
+                    placeholder="Enter approved company policy, SLA, or technical spec..."
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl p-3 text-sm mt-1"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    onClick={() => setShowAddKnowledgeModal(false)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateKnowledgeDoc}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-emerald-500/20"
+                  >
+                    Create & Index Knowledge
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

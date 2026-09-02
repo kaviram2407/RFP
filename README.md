@@ -145,12 +145,27 @@ AI-powered requirement extraction using NVIDIA NIM `openai/gpt-oss-120b` structu
 - `GET /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}/evidence`: List linked source evidence blocks.
 - `PATCH /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}`: Human-in-the-loop review actions (`ACCEPTED`, `REJECTED`, edit fields) (`PRODUCT_TEAM` only).
 
+### Company Knowledge Base & Hybrid RAG API (`/api/v1/company-knowledge` & `/api/v1/knowledge/search`)
+
+Hybrid RAG retrieval engine combining Cosine Similarity over NVIDIA Nemotron 2048-dim embeddings (`pgvector`) with PostgreSQL Full-Text Search and Authority Boosting.
+
+#### Endpoints
+- `POST /api/v1/company-knowledge`: Create Company Knowledge document (`PRODUCT_TEAM` only).
+- `GET /api/v1/company-knowledge`: List company knowledge documents with filters.
+- `GET /api/v1/company-knowledge/{id}`: View knowledge document details & versions.
+- `POST /api/v1/company-knowledge/{id}/versions`: Add new knowledge version (`PRODUCT_TEAM` only).
+- `POST /api/v1/company-knowledge/{id}/versions/{version_id}/process`: Trigger chunking & embedding pipeline (`PRODUCT_TEAM` only).
+- `PATCH /api/v1/company-knowledge/{id}`: Update metadata or status (`DRAFT`, `ACTIVE`, `ARCHIVED`) (`PRODUCT_TEAM` only).
+- `POST /api/v1/knowledge/search`: Perform Hybrid RAG Search query across active company knowledge.
+- `POST /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}/find-evidence`: Find relevant company knowledge evidence for an RFP requirement.
+
 ### Running Tests
-To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, Cloudflare R2 Uploads, Document Processing, and AI Requirement Extraction:
+To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, Cloudflare R2 Uploads, Document Processing, Requirement Extraction, and Hybrid RAG Search:
 ```bash
 cd backend
 PYTHONPATH=. .venv/bin/pytest tests
 ```
+
 
 
 
