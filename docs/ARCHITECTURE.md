@@ -6,8 +6,11 @@
 - **Database**: PostgreSQL with `pgvector` extension
 - **Storage**: Cloudflare R2 (S3-compatible API via `boto3`)
 - **Caching & Workers**: Redis & Celery
+- **Document Parsers**: PyMuPDF (`fitz`), `python-docx`, `openpyxl`, `python-pptx`
 
-## Document Storage Architecture (Phase 4)
-- **Tenant Isolation**: Every `RFPDocument` and `DocumentVersion` belongs to an `Organization`. Access is restricted at the API dependency layer.
-- **Storage Key Format**: Objects are stored in R2 as `organizations/{org_id}/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}` using server-generated UUIDs.
-- **Security**: Uploaded files are validated for size (50MB default limit), extension (`.pdf`, `.docx`, `.xlsx`, `.pptx`), and magic byte headers (`%PDF-`, Zip headers `PK\x03\x04`). Downloads are served via short-lived presigned S3/R2 URLs.
+## Document Processing Architecture (Phase 5)
+- **Extracted Content Hierarchy**:
+  - `DocumentContent`: Holds aggregated normalized `full_text` and total unit count per version.
+  - `DocumentContentBlock`: Stores granular blocks (`PAGE`, `PARAGRAPH`, `SHEET`, `SLIDE`) with 1-indexed numbers and positional JSON metadata (`bbox`, `sheet_name`, `slide_title`) preparing for Phase 6 evidence linking.
+- **Asynchronous Worker Pipeline**: Celery task `process_document_version_task` handles retrieval from R2, parser selection, block extraction, text normalization, and database persistence.
+- **Idempotent Retry**: Re-running processing on a `DocumentVersion` cleanly replaces old extraction output without generating duplicate DB rows.

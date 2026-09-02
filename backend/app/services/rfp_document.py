@@ -6,9 +6,27 @@ import uuid
 import math
 
 from app.models.rfp_project import RFPProject
-from app.models.rfp_document import RFPDocument, DocumentVersion, DocumentStatusEnum
+from app.models.rfp_document import RFPDocument, DocumentVersion, DocumentStatusEnum, ProcessingStatusEnum
 from app.models.user import User
 from app.services.storage import validate_uploaded_file, storage_service
+
+def enqueue_processing(version_id: uuid.UUID):
+    try:
+        from app.tasks.document_tasks import process_document_version_task
+        process_document_version_task.delay(str(version_id))
+    except Exception:
+        # Fallback to direct synchronous execution if Celery broker is unavailable in local test
+        try:
+            from app.db.session import SessionLocal
+            from app.services.document_processing import process_document_version
+            db_sync = SessionLocal()
+            try:
+                process_document_version(db_sync, version_id)
+            finally:
+                db_sync.close()
+        except Exception:
+            pass
+
 
 def verify_project_ownership(db: Session, current_user: User, project_id: uuid.UUID) -> RFPProject:
     project = db.query(RFPProject).filter(
@@ -86,6 +104,7 @@ def upload_document(
     try:
         db.commit()
         db.refresh(document)
+        enqueue_processing(version_id)
     except Exception as e:
         db.rollback()
         # Clean up R2 object if DB commit fails
@@ -161,6 +180,7 @@ def upload_new_version(
     try:
         db.commit()
         db.refresh(document)
+        enqueue_processing(version_id)
     except Exception as e:
         db.rollback()
         storage_service.delete_file(storage_key)

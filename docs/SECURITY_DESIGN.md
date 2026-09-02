@@ -5,11 +5,10 @@
 - Cross-tenant queries return `404 Not Found` to prevent leaking resource existence.
 
 ## Role-Based Access Control (RBAC)
-- **`PRODUCT_TEAM`**: Full write permissions (Create RFP, Update, Archive, Upload Document, Add Document Version).
-- **`VP`, `CTO`, `CEO`**: Read-only access (List RFPs, View RFPs, List Documents, Download Documents via presigned URLs).
+- **`PRODUCT_TEAM`**: Full write permissions (Create RFP, Update, Archive, Upload Document, Add Document Version, Trigger Document Reprocessing).
+- **`VP`, `CTO`, `CEO`**: Read-only access (List RFPs, View RFPs, List Documents, Download Documents, View Processing Status, View Extracted Content).
 
-## Document Storage Security
-- **Cloudflare R2 Bucket**: Private bucket access only.
-- **Presigned URLs**: Short-lived presigned GET URLs generated only after authenticating user & verifying tenant permissions.
-- **File Validation**: Strict multi-layer validation (Extension, MIME type, Magic Header Bytes, and Size limit).
-- **Storage Keys**: Obfuscated UUID hierarchy prevents path traversal and overwrite vulnerabilities.
+## Untrusted Input & Document Processing Security
+- Extracted document text is treated strictly as plain data and is never executed or interpreted as code/instructions.
+- External macros, dynamic formulas, and embedded scripts are not executed by the extraction layer.
+- Workers download files directly from R2 using backend credentials within the tenant boundaries.

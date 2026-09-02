@@ -9,9 +9,12 @@ interface DocumentVersion {
   content_type: string;
   file_size_bytes: number;
   checksum_sha256: string;
+  processing_status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  processing_started_at?: string;
+  processing_completed_at?: string;
+  processing_error?: string;
   created_at: string;
 }
-
 
 interface RFPDocument {
   id: string;
@@ -32,7 +35,6 @@ export default function DocumentManagementPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [selectedDocVersions, setSelectedDocVersions] = useState<DocumentVersion[] | null>(null);
-  const [activeDocForVersionUpload, setActiveDocForVersionUpload] = useState<RFPDocument | null>(null);
 
   // Demo Mock Data for Visual Verification
   useEffect(() => {
@@ -51,6 +53,9 @@ export default function DocumentManagementPage() {
           content_type: "application/pdf",
           file_size_bytes: 4521000,
           checksum_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          processing_status: "COMPLETED",
+          processing_started_at: new Date(Date.now() - 60000).toISOString(),
+          processing_completed_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
         },
       },
@@ -68,6 +73,9 @@ export default function DocumentManagementPage() {
           content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           file_size_bytes: 1240500,
           checksum_sha256: "a8f5c24298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b811",
+          processing_status: "COMPLETED",
+          processing_started_at: new Date(Date.now() - 30000).toISOString(),
+          processing_completed_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
         },
       },
@@ -103,11 +111,16 @@ export default function DocumentManagementPage() {
     setError(null);
 
     setTimeout(() => {
-      const ext = selectedFile.name.substring(selectedFile.name.lastIndexOf(".")).toUpperCase().replace(".", "") as any;
+      const extName = selectedFile.name.substring(selectedFile.name.lastIndexOf(".")).toUpperCase().replace(".", "");
+      let docType: "PDF" | "DOCX" | "XLSX" | "PPTX" = "PDF";
+      if (extName === "DOCX" || extName === "DOC") docType = "DOCX";
+      else if (extName === "XLSX") docType = "XLSX";
+      else if (extName === "PPTX") docType = "PPTX";
+
       const newDoc: RFPDocument = {
         id: `doc-${Date.now()}`,
         name: selectedFile.name,
-        document_type: ext === "DOC" ? "DOCX" : ext,
+        document_type: docType,
         status: "ACTIVE",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -118,6 +131,9 @@ export default function DocumentManagementPage() {
           content_type: selectedFile.type || "application/octet-stream",
           file_size_bytes: selectedFile.size,
           checksum_sha256: "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+          processing_status: "COMPLETED",
+          processing_started_at: new Date().toISOString(),
+          processing_completed_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
         },
       };
@@ -132,10 +148,38 @@ export default function DocumentManagementPage() {
     alert(`Generating secure short-lived Cloudflare R2 presigned GET URL for '${doc.name}' (Version ${versionNumber || doc.current_version?.version_number || 1})...`);
   };
 
-  const handleArchive = (docId: string) => {
+  const handleProcessRetry = (docId: string) => {
     setDocuments((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, status: "ARCHIVED" as const } : d))
+      prev.map((d) =>
+        d.id === docId && d.current_version
+          ? {
+              ...d,
+              current_version: {
+                ...d.current_version,
+                processing_status: "PROCESSING" as const,
+                processing_error: undefined,
+              },
+            }
+          : d
+      )
     );
+
+    setTimeout(() => {
+      setDocuments((prev) =>
+        prev.map((d) =>
+          d.id === docId && d.current_version
+            ? {
+                ...d,
+                current_version: {
+                  ...d.current_version,
+                  processing_status: "COMPLETED" as const,
+                  processing_completed_at: new Date().toISOString(),
+                },
+              }
+            : d
+        )
+      );
+    }, 1200);
   };
 
   const isProductTeam = role === "PRODUCT_TEAM";
@@ -147,9 +191,9 @@ export default function DocumentManagementPage() {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">AI-RFP Document Storage</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white">AI-RFP Document & Text Extraction Engine</h1>
             <p className="text-slate-400 text-sm mt-1">
-              Phase 4 — Cloudflare R2 Document Management & Versioning System
+              Phase 5 — PyMuPDF, python-docx, openpyxl, python-pptx Extraction & Source Metadata Indexing
             </p>
           </div>
 
@@ -169,7 +213,7 @@ export default function DocumentManagementPage() {
           </div>
         </div>
 
-        {/* Upload Control Card (Only visible to PRODUCT_TEAM) */}
+        {/* Upload Control Card */}
         {isProductTeam ? (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
             <div className="flex justify-between items-center">
@@ -179,7 +223,7 @@ export default function DocumentManagementPage() {
                 </svg>
                 Upload RFP Document
               </h2>
-              <span className="text-xs text-slate-500 font-mono">Max Size: 50MB | Formats: .pdf, .docx, .xlsx, .pptx</span>
+              <span className="text-xs text-slate-500 font-mono">Parsers: PyMuPDF (.pdf), python-docx (.docx), openpyxl (.xlsx), python-pptx (.pptx)</span>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -194,7 +238,7 @@ export default function DocumentManagementPage() {
                 disabled={!selectedFile || uploading}
                 className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-blue-500/20 whitespace-nowrap"
               >
-                {uploading ? "Uploading to R2..." : "Upload Document"}
+                {uploading ? "Uploading & Extracting..." : "Upload Document"}
               </button>
             </div>
 
@@ -206,14 +250,14 @@ export default function DocumentManagementPage() {
           </div>
         ) : (
           <div className="p-4 bg-slate-900/50 border border-slate-800/60 rounded-xl text-slate-400 text-xs flex items-center gap-2">
-            <span>🔒 Read-only view active for role <strong className="text-slate-200">{role}</strong>. Document upload controls are disabled.</span>
+            <span>🔒 Read-only view active for role <strong className="text-slate-200">{role}</strong>. Document upload and re-processing controls are disabled.</span>
           </div>
         )}
 
         {/* Document List Table */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
           <div className="p-5 border-b border-slate-800 flex justify-between items-center">
-            <h2 className="text-base font-semibold text-slate-200">RFP Project Documents</h2>
+            <h2 className="text-base font-semibold text-slate-200">RFP Project Documents & Extraction Lifecycle</h2>
             <span className="text-xs bg-slate-800 text-slate-400 px-2.5 py-1 rounded-full font-mono">{documents.length} Files</span>
           </div>
 
@@ -228,77 +272,83 @@ export default function DocumentManagementPage() {
                   <tr>
                     <th className="px-6 py-4">Document Name</th>
                     <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4">Current Version</th>
-                    <th className="px-6 py-4">Size</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Version</th>
+                    <th className="px-6 py-4">Text Processing Status</th>
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                  {documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-slate-800/40 transition">
-                      <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
-                        <span className="p-2 bg-slate-800 rounded-lg text-blue-400">📄</span>
-                        {doc.name}
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs text-slate-400">{doc.document_type}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-2.5 py-1 bg-blue-950 text-blue-300 font-mono text-xs font-semibold rounded-md border border-blue-800">
-                          v{doc.current_version?.version_number || 1}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-xs font-mono text-slate-400">
-                        {doc.current_version ? `${(doc.current_version.file_size_bytes / 1024 / 1024).toFixed(2)} MB` : "-"}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2.5 py-1 text-xs font-semibold rounded-full border ${
-                            doc.status === "ACTIVE"
-                              ? "bg-emerald-950 text-emerald-300 border-emerald-800"
-                              : "bg-amber-950 text-amber-300 border-amber-800"
-                          }`}
-                        >
-                          {doc.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right space-x-3">
-                        <button
-                          onClick={() => handleDownload(doc)}
-                          className="text-xs text-blue-400 hover:text-blue-300 font-medium hover:underline"
-                        >
-                          Download
-                        </button>
-
-                        <button
-                          onClick={() => setSelectedDocVersions(doc.current_version ? [doc.current_version] : [])}
-                          className="text-xs text-slate-400 hover:text-slate-200 font-medium hover:underline"
-                        >
-                          Versions
-                        </button>
-
-                        {isProductTeam && doc.status === "ACTIVE" && (
-                          <button
-                            onClick={() => handleArchive(doc.id)}
-                            className="text-xs text-amber-400 hover:text-amber-300 font-medium hover:underline"
+                  {documents.map((doc) => {
+                    const status = doc.current_version?.processing_status || "PENDING";
+                    return (
+                      <tr key={doc.id} className="hover:bg-slate-800/40 transition">
+                        <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
+                          <span className="p-2 bg-slate-800 rounded-lg text-blue-400">📄</span>
+                          {doc.name}
+                        </td>
+                        <td className="px-6 py-4 font-mono text-xs text-slate-400">{doc.document_type}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2.5 py-1 bg-blue-950 text-blue-300 font-mono text-xs font-semibold rounded-md border border-blue-800">
+                            v{doc.current_version?.version_number || 1}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`px-2.5 py-1 text-xs font-semibold rounded-full border inline-flex items-center gap-1.5 ${
+                              status === "COMPLETED"
+                                ? "bg-emerald-950 text-emerald-300 border-emerald-800"
+                                : status === "PROCESSING"
+                                ? "bg-blue-950 text-blue-300 border-blue-800 animate-pulse"
+                                : status === "FAILED"
+                                ? "bg-red-950 text-red-300 border-red-800"
+                                : "bg-slate-800 text-slate-400 border-slate-700"
+                            }`}
                           >
-                            Archive
+                            {status === "COMPLETED" && "✓ "}
+                            {status === "PROCESSING" && "⚙ "}
+                            {status === "FAILED" && "✖ "}
+                            {status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-3">
+                          <button
+                            onClick={() => handleDownload(doc)}
+                            className="text-xs text-blue-400 hover:text-blue-300 font-medium hover:underline"
+                          >
+                            Download
                           </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+
+                          <button
+                            onClick={() => setSelectedDocVersions(doc.current_version ? [doc.current_version] : [])}
+                            className="text-xs text-slate-400 hover:text-slate-200 font-medium hover:underline"
+                          >
+                            Versions
+                          </button>
+
+                          {isProductTeam && (
+                            <button
+                              onClick={() => handleProcessRetry(doc.id)}
+                              className="text-xs text-purple-400 hover:text-purple-300 font-medium hover:underline"
+                            >
+                              Reprocess
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </div>
 
-        {/* Version Details Modal */}
+        {/* Version & Extraction Metadata Drawer/Modal */}
         {selectedDocVersions && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h3 className="text-lg font-bold text-white">Version History</h3>
+                <h3 className="text-lg font-bold text-white">Version & Extraction Metadata</h3>
                 <button
                   onClick={() => setSelectedDocVersions(null)}
                   className="text-slate-400 hover:text-white text-sm"
@@ -309,21 +359,23 @@ export default function DocumentManagementPage() {
 
               <div className="space-y-3 max-h-80 overflow-y-auto">
                 {selectedDocVersions.map((v) => (
-                  <div key={v.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl flex justify-between items-center">
-                    <div>
-                      <div className="font-semibold text-sm text-slate-200 flex items-center gap-2">
-                        <span className="text-blue-400 font-mono text-xs">v{v.version_number}</span> — {v.original_filename}
-                      </div>
-                      <div className="text-slate-500 font-mono text-xs mt-1">
-                        SHA256: {v.checksum_sha256.substring(0, 16)}... | {(v.file_size_bytes / 1024).toFixed(1)} KB
-                      </div>
+                  <div key={v.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-sm text-slate-200">
+                        Version {v.version_number} — {v.original_filename}
+                      </span>
+                      <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded">
+                        {v.processing_status}
+                      </span>
                     </div>
-                    <button
-                      onClick={() => alert(`Presigned URL for Version ${v.version_number}`)}
-                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-medium rounded-lg"
-                    >
-                      Download
-                    </button>
+
+                    <div className="text-slate-500 font-mono text-xs space-y-1">
+                      <div>SHA256: {v.checksum_sha256}</div>
+                      <div>Size: {(v.file_size_bytes / 1024).toFixed(1)} KB</div>
+                      {v.processing_completed_at && (
+                        <div className="text-slate-400">Processed At: {new Date(v.processing_completed_at).toLocaleString()}</div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

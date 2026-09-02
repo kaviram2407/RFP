@@ -130,12 +130,25 @@ Secure document storage foundation supporting file uploads (`.pdf`, `.docx`, `.x
 - `GET /api/v1/rfp-projects/{project_id}/documents/{document_id}/download`: Generate short-lived presigned R2 GET URL.
 - `POST /api/v1/rfp-projects/{project_id}/documents/{document_id}/archive`: Soft archive document (`PRODUCT_TEAM` only).
 
+### Document Processing & Text Extraction API (`/api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}`)
+
+Extracted structured source content, normalized text, and source-location metadata indexing for PDF (PyMuPDF), DOCX (python-docx), XLSX (openpyxl), and PPTX (python-pptx).
+
+#### Processing Lifecycle
+- `PENDING` → `PROCESSING` → `COMPLETED` / `FAILED`
+
+#### Endpoints
+- `GET /api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}/processing`: Check processing status & errors.
+- `POST /api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}/process`: Manually trigger or retry processing (`PRODUCT_TEAM` only).
+- `GET /api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}/content`: Retrieve extracted full text & structural blocks.
+
 ### Running Tests
-To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, and Cloudflare R2 Document Uploads:
+To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, Cloudflare R2 Uploads, and Document Processing:
 ```bash
 cd backend
 PYTHONPATH=. .venv/bin/pytest tests
 ```
+
 
 
 

@@ -19,3 +19,8 @@
 - `GET /api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions`: Get document version history.
 - `GET /api/v1/rfp-projects/{project_id}/documents/{doc_id}/download`: Get short-lived presigned download URL.
 - `POST /api/v1/rfp-projects/{project_id}/documents/{doc_id}/archive`: Soft archive document (`PRODUCT_TEAM` only).
+
+## Document Processing (`/api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}`)
+- `GET .../processing`: Get processing status (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`).
+- `POST .../process`: Trigger or retry document text extraction (`PRODUCT_TEAM` only).
+- `GET .../content`: Retrieve extracted full text and structural blocks (`PAGE`, `PARAGRAPH`, `SHEET`, `SLIDE`).

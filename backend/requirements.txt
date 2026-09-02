@@ -16,3 +16,7 @@ PyJWT
 pwdlib[argon2]
 email-validator
 boto3
+pymupdf
+python-docx
+openpyxl
+python-pptx
