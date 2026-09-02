@@ -90,12 +90,40 @@ curl -X POST http://localhost:8000/auth/login -d "username=dev@example.com&passw
 curl -H "Authorization: Bearer <token>" http://localhost:8000/auth/me
 ```
 
+### RFP Projects API (`/api/v1/rfp-projects`)
+
+The platform supports creating and managing RFP Projects tied strictly to the user's Organization.
+
+#### Endpoints
+- `POST /api/v1/rfp-projects`: Create project (`PRODUCT_TEAM` only).
+- `GET /api/v1/rfp-projects`: List projects for organization (Paginated, optional `status` filter. Accessible by `PRODUCT_TEAM`, `VP`, `CTO`, `CEO`).
+- `GET /api/v1/rfp-projects/{project_id}`: Retrieve project details.
+- `PATCH /api/v1/rfp-projects/{project_id}`: Update project or advance status (`PRODUCT_TEAM` only).
+- `POST /api/v1/rfp-projects/{project_id}/archive`: Soft archive project (`PRODUCT_TEAM` only).
+
+#### Example usage
+```bash
+# Create Project
+curl -X POST http://localhost:8000/api/v1/rfp-projects \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Enterprise Analytics RFP",
+    "reference_number": "RFP-2026-001",
+    "customer_name": "Acme Corp"
+  }'
+
+# List Projects
+curl -H "Authorization: Bearer <token>" "http://localhost:8000/api/v1/rfp-projects?page=1&page_size=20"
+```
+
 ### Running Tests
-To verify authentication, RBAC, and tenant isolation boundaries:
+To verify authentication, RBAC, tenant isolation, and RFP Project lifecycles:
 ```bash
 cd backend
 PYTHONPATH=. .venv/bin/pytest tests
 ```
+
 
 ### Stop infrastructure
 

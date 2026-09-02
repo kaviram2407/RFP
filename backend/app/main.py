@@ -2,8 +2,9 @@ from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.api import deps
-from app.api.routes import auth
+from app.api.routes import auth, rfp_project
 from app.core.config import settings
+
 import redis
 import logging
 
@@ -13,6 +14,8 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title=settings.APP_NAME)
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(rfp_project.router, prefix="/api/v1/rfp-projects", tags=["rfp-projects"])
+
 
 
 @app.get("/health")
