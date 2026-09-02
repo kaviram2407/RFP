@@ -7,3 +7,4 @@ from app.models.rfp_project import RFPProject
 from app.models.rfp_document import RFPDocument, DocumentVersion, DocumentContent, DocumentContentBlock
 from app.models.requirement import Requirement, RequirementEvidence
 from app.models.company_knowledge import CompanyKnowledgeDocument, KnowledgeDocumentVersion, KnowledgeChunk
+from app.models.previous_proposal import PreviousProposal, PreviousProposalVersion, PreviousProposalSection

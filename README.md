@@ -159,12 +159,27 @@ Hybrid RAG retrieval engine combining Cosine Similarity over NVIDIA Nemotron 204
 - `POST /api/v1/knowledge/search`: Perform Hybrid RAG Search query across active company knowledge.
 - `POST /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}/find-evidence`: Find relevant company knowledge evidence for an RFP requirement.
 
+### Previous Proposals & Historical Retrieval API (`/api/v1/previous-proposals`)
+
+Hybrid historical proposal retrieval engine combining Cosine Distance over 2048-dim NVIDIA embeddings (`pgvector`) with PostgreSQL Full-Text Search, recency decay, and outcome signals (`WON`, `LOST`).
+
+#### Endpoints
+- `POST /api/v1/previous-proposals`: Create previous proposal (`PRODUCT_TEAM` only).
+- `GET /api/v1/previous-proposals`: List previous proposals with outcome/status filters.
+- `GET /api/v1/previous-proposals/{id}`: View proposal details & versions.
+- `POST /api/v1/previous-proposals/{id}/versions`: Add proposal version (`PRODUCT_TEAM` only).
+- `POST /api/v1/previous-proposals/{id}/versions/{version_id}/process`: Trigger ingestion & vector processing (`PRODUCT_TEAM` only).
+- `PATCH /api/v1/previous-proposals/{id}`: Update metadata or status (`DRAFT`, `APPROVED`, `ARCHIVED`) (`PRODUCT_TEAM` only).
+- `POST /api/v1/previous-proposals/search`: Historical Proposal Search API.
+- `POST /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}/find-previous-proposals`: Find historical proposal evidence for an RFP requirement.
+
 ### Running Tests
-To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, Cloudflare R2 Uploads, Document Processing, Requirement Extraction, and Hybrid RAG Search:
+To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, Cloudflare R2 Uploads, Document Processing, Requirement Extraction, Hybrid RAG Search, and Previous Proposal Historical Search:
 ```bash
 cd backend
 PYTHONPATH=. .venv/bin/pytest tests
 ```
+
 
 
 

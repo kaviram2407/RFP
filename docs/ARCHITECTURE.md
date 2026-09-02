@@ -10,11 +10,18 @@
 - **LLM Engine**: NVIDIA NIM OpenAI-compatible Chat Completions API (`openai/gpt-oss-120b`)
 - **Embedding Engine**: NVIDIA NIM Embeddings API (`nvidia/nemotron-3-embed-1b`, 2048 dimensions)
 
-## Hybrid RAG Retrieval Architecture (Phase 7)
-- **Company Knowledge Document**: Represents approved organization knowledge (`title`, `knowledge_type`, `status` (`DRAFT`, `ACTIVE`, `ARCHIVED`), `authority_level` (`AUTHORITATIVE`, `APPROVED`, `INTERNAL`, `REFERENCE`)).
-- **KnowledgeChunk**: Stores chunk text, `source_metadata` (`page`, `section`, `cell_range`), `content_hash`, `Vector(2048)` pgvector column, and PostgreSQL `TSVector` full-text search column.
-- **Hybrid Retrieval Engine**:
-  - `Semantic Similarity`: Cosine Distance (`<->`) on 2048-dim vectors.
-  - `Lexical Search`: PostgreSQL `ts_rank_cd` full-text search.
-  - `Hybrid Formula`: `(Semantic * 0.70) + (Lexical * 0.30)` multiplied by Authority Boost (`AUTHORITATIVE`: 1.2x).
-  - `Status Controls`: `DRAFT` and `ARCHIVED` documents are strictly excluded from active search results.
+## Hybrid RAG & Historical Retrieval Architecture (Phase 7 & Phase 8)
+- **Company Knowledge Base (Phase 7)**: Represents current organization truth (`AUTHORITATIVE`: 1.2x boost, `APPROVED`: 1.1x boost).
+- **Previous Proposal Intelligence Engine (Phase 8)**: Represents historical submitted proposals (`WON`, `LOST`, `NO_DECISION`, `UNKNOWN`).
+- **Source Hierarchy Rule**:
+  1. Current Authoritative Company Knowledge
+  2. Current Approved Company Knowledge
+  3. Recent Approved Proposals
+  4. Older Approved Proposals
+  5. Unsupported inference
+- **Hybrid Search Engine**:
+  - `Semantic Similarity`: Cosine Distance (`<->`) on 2048-dim vectors (`PreviousProposalSection.embedding`).
+  - `Lexical Search`: PostgreSQL `ts_rank_cd` full-text search (`search_vector`).
+  - `Recency Signal`: Exponential decay `exp(-age_days / 365.0)` derived from proposal date.
+  - `Outcome Signal`: `WON` (+10% boost), `LOST` (0.95x, searchable).
+  - `Status Controls`: `DRAFT` and `ARCHIVED` proposals are strictly excluded from production search.

@@ -23,3 +23,8 @@
 - `company_knowledge_document` (id, organization_id, created_by_id, title, description, knowledge_type, source_name, source_reference, status, authority_level, effective_from, effective_until, created_at, updated_at, archived_at)
 - `knowledge_document_version` (id, organization_id, knowledge_document_id, version_number, original_filename, content_type, storage_key, checksum_sha256, raw_content, processing_status)
 - `knowledge_chunk` (id, organization_id, knowledge_document_id, knowledge_version_id, chunk_index, content, token_count, character_count, source_metadata, content_hash, embedding `vector(2048)`, embedding_model, embedding_dimensions, search_vector `tsvector`)
+
+### Previous Proposal Intelligence & Historical Retrieval (Phase 8)
+- `previous_proposal` (id, organization_id, created_by_id, title, proposal_reference, customer_name, description, proposal_date, submission_date, outcome `proposaloutcomeenum`, status `proposalstatusenum`, created_at, updated_at, archived_at)
+- `previous_proposal_version` (id, organization_id, previous_proposal_id, version_number, original_filename, content_type, storage_key, checksum_sha256, raw_content, processing_status)
+- `previous_proposal_section` (id, organization_id, proposal_id, proposal_version_id, section_index, section_title, content, character_count, source_metadata, content_hash, embedding `vector(2048)`, embedding_model, embedding_dimensions, search_vector `tsvector`)

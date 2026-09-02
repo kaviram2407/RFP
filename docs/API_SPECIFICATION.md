@@ -33,12 +33,22 @@
 - `GET .../requirements/{requirement_id}/evidence`: List linked source evidence blocks.
 - `PATCH .../requirements/{requirement_id}`: Human-in-the-loop review actions (`ACCEPTED`, `REJECTED`, edit fields) (`PRODUCT_TEAM` only).
 
-## Company Knowledge & Hybrid RAG Retrieval (`/api/v1/company-knowledge` & `/api/v1/knowledge`)
+## Company Knowledge Base (`/api/v1/company-knowledge` & `/api/v1/knowledge`)
 - `POST /api/v1/company-knowledge`: Create knowledge document (`PRODUCT_TEAM` only).
-- `GET /api/v1/company-knowledge`: List company knowledge documents with type/status/authority filters.
+- `GET /api/v1/company-knowledge`: List company knowledge documents.
 - `GET /api/v1/company-knowledge/{id}`: View knowledge document details & versions.
 - `POST /api/v1/company-knowledge/{id}/versions`: Add new version (`PRODUCT_TEAM` only).
 - `POST /api/v1/company-knowledge/{id}/versions/{version_id}/process`: Trigger ingestion & vector embedding task (`PRODUCT_TEAM` only).
 - `PATCH /api/v1/company-knowledge/{id}`: Update metadata or status (`DRAFT`, `ACTIVE`, `ARCHIVED`) (`PRODUCT_TEAM` only).
 - `POST /api/v1/knowledge/search`: Perform Hybrid RAG Search query across active company knowledge.
 - `POST /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}/find-evidence`: Find relevant company knowledge evidence for an RFP requirement.
+
+## Previous Proposals & Historical Retrieval (`/api/v1/previous-proposals`)
+- `POST /api/v1/previous-proposals`: Create previous proposal (`PRODUCT_TEAM` only).
+- `GET /api/v1/previous-proposals`: List previous proposals with outcome/status filters.
+- `GET /api/v1/previous-proposals/{id}`: View proposal details & versions.
+- `POST /api/v1/previous-proposals/{id}/versions`: Add proposal version (`PRODUCT_TEAM` only).
+- `POST /api/v1/previous-proposals/{id}/versions/{version_id}/process`: Trigger ingestion & vector processing (`PRODUCT_TEAM` only).
+- `PATCH /api/v1/previous-proposals/{id}`: Update metadata or status (`DRAFT`, `APPROVED`, `ARCHIVED`) (`PRODUCT_TEAM` only).
+- `POST /api/v1/previous-proposals/search`: Historical Proposal Search API.
+- `POST /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}/find-previous-proposals`: Find historical proposal evidence for an RFP requirement.

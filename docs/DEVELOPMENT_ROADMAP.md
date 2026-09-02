@@ -7,7 +7,7 @@
 - [x] **Phase 5**: Document Processing & Text Extraction (PyMuPDF, python-docx, openpyxl, python-pptx, DocumentContentBlock)
 - [x] **Phase 6**: AI RFP Understanding & Requirement Extraction (NVIDIA LLM openai/gpt-oss-120b, Requirement & Evidence models)
 - [x] **Phase 7**: Company Knowledge + RAG Implementation (NVIDIA nemotron 2048-dim embeddings, pgvector, Hybrid Search, Authority Boosting)
-- [ ] **Phase 8**: Previous Proposal Intelligence & Reuse
+- [x] **Phase 8**: Previous Proposal Intelligence & Reuse (PreviousProposal models, 2048-dim pgvector, Recency & Outcome Signals, Historical Evidence API & UI)
 - [ ] **Phase 9**: Compliance Assessment & Gap Analysis Engine
 - [ ] **Phase 10**: AI Proposal Content Generation
 - [ ] **Phase 11**: Verification, Verification Guardrails & Human Approval Workflow
