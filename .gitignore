@@ -1,0 +1,65 @@
+# ==============================
+# General
+# ==============================
+.DS_Store
+Thumbs.db
+*.log
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+
+# ==============================
+# Python
+# ==============================
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.venv/
+venv/
+env/
+
+# ==============================
+# Node / Next.js
+# ==============================
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# ==============================
+# IDEs / Editors
+# ==============================
+.idea/
+.vscode/
+*.swp
+
+# ==============================
+# Temporary files
+# ==============================
+*.tmp
+*.temp
+
+# ==============================
+# Local databases / runtime
+# ==============================
+*.sqlite
+*.sqlite3
+
+# ==============================
+# Test / Coverage
+# ==============================
+coverage/
+.nyc_output/
+
+# ==============================
+# OS
+# ==============================
+.DS_Store
