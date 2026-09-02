@@ -117,12 +117,26 @@ curl -X POST http://localhost:8000/api/v1/rfp-projects \
 curl -H "Authorization: Bearer <token>" "http://localhost:8000/api/v1/rfp-projects?page=1&page_size=20"
 ```
 
+### RFP Documents API & Cloudflare R2 Storage (`/api/v1/rfp-projects/{project_id}/documents`)
+
+Secure document storage foundation supporting file uploads (`.pdf`, `.docx`, `.xlsx`, `.pptx`), automatic versioning, magic byte signature validation, size limit checks, and presigned R2 download URLs.
+
+#### Endpoints
+- `POST /api/v1/rfp-projects/{project_id}/documents`: Upload document / Version 1 (`PRODUCT_TEAM` only).
+- `POST /api/v1/rfp-projects/{project_id}/documents/{document_id}/versions`: Upload Version N (`PRODUCT_TEAM` only).
+- `GET /api/v1/rfp-projects/{project_id}/documents`: List documents for project (Paginated).
+- `GET /api/v1/rfp-projects/{project_id}/documents/{document_id}`: Retrieve document details & current version.
+- `GET /api/v1/rfp-projects/{project_id}/documents/{document_id}/versions`: List version history.
+- `GET /api/v1/rfp-projects/{project_id}/documents/{document_id}/download`: Generate short-lived presigned R2 GET URL.
+- `POST /api/v1/rfp-projects/{project_id}/documents/{document_id}/archive`: Soft archive document (`PRODUCT_TEAM` only).
+
 ### Running Tests
-To verify authentication, RBAC, tenant isolation, and RFP Project lifecycles:
+To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, and Cloudflare R2 Document Uploads:
 ```bash
 cd backend
 PYTHONPATH=. .venv/bin/pytest tests
 ```
+
 
 
 ### Stop infrastructure

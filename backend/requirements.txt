@@ -15,3 +15,4 @@ httpx
 PyJWT
 pwdlib[argon2]
 email-validator
+boto3
