@@ -130,24 +130,28 @@ Secure document storage foundation supporting file uploads (`.pdf`, `.docx`, `.x
 - `GET /api/v1/rfp-projects/{project_id}/documents/{document_id}/download`: Generate short-lived presigned R2 GET URL.
 - `POST /api/v1/rfp-projects/{project_id}/documents/{document_id}/archive`: Soft archive document (`PRODUCT_TEAM` only).
 
-### Document Processing & Text Extraction API (`/api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}`)
+### AI Requirement Extraction & Evidence Traceability API (`/api/v1/rfp-projects/{project_id}`)
 
-Extracted structured source content, normalized text, and source-location metadata indexing for PDF (PyMuPDF), DOCX (python-docx), XLSX (openpyxl), and PPTX (python-pptx).
+AI-powered requirement extraction using NVIDIA NIM `openai/gpt-oss-120b` structured output, linking each requirement directly to Phase 5 source document content blocks (`PAGE`, `PARAGRAPH`, `SHEET`, `SLIDE`).
 
-#### Processing Lifecycle
+#### Extraction Lifecycle
 - `PENDING` → `PROCESSING` → `COMPLETED` / `FAILED`
 
 #### Endpoints
-- `GET /api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}/processing`: Check processing status & errors.
-- `POST /api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}/process`: Manually trigger or retry processing (`PRODUCT_TEAM` only).
-- `GET /api/v1/rfp-projects/{project_id}/documents/{doc_id}/versions/{version_id}/content`: Retrieve extracted full text & structural blocks.
+- `POST /api/v1/rfp-projects/{project_id}/requirement-extraction`: Trigger AI requirement extraction (`PRODUCT_TEAM` only).
+- `GET /api/v1/rfp-projects/{project_id}/requirement-extraction`: Check extraction status.
+- `GET /api/v1/rfp-projects/{project_id}/requirements`: List project requirements with category, type, priority, and status filters.
+- `GET /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}`: View single requirement details.
+- `GET /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}/evidence`: List linked source evidence blocks.
+- `PATCH /api/v1/rfp-projects/{project_id}/requirements/{requirement_id}`: Human-in-the-loop review actions (`ACCEPTED`, `REJECTED`, edit fields) (`PRODUCT_TEAM` only).
 
 ### Running Tests
-To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, Cloudflare R2 Uploads, and Document Processing:
+To verify authentication, RBAC, tenant isolation, RFP Project lifecycles, Cloudflare R2 Uploads, Document Processing, and AI Requirement Extraction:
 ```bash
 cd backend
 PYTHONPATH=. .venv/bin/pytest tests
 ```
+
 
 
 

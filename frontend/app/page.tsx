@@ -10,9 +10,8 @@ interface DocumentVersion {
   file_size_bytes: number;
   checksum_sha256: string;
   processing_status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  processing_started_at?: string;
+  extraction_status?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   processing_completed_at?: string;
-  processing_error?: string;
   created_at: string;
 }
 
@@ -26,174 +25,190 @@ interface RFPDocument {
   updated_at: string;
 }
 
-export default function DocumentManagementPage() {
+interface RequirementEvidence {
+  id: string;
+  content_block_id: string;
+  evidence_text: string;
+  source_type: string;
+  source_reference: string;
+  relevance_score: number;
+}
+
+interface Requirement {
+  id: string;
+  requirement_code: string;
+  title: string;
+  description: string;
+  category: "FUNCTIONAL" | "TECHNICAL" | "SECURITY" | "COMPLIANCE" | "LEGAL" | "COMMERCIAL" | "FINANCIAL" | "OPERATIONAL" | "SUPPORT" | "IMPLEMENTATION" | "GENERAL";
+  requirement_type: "MANDATORY" | "OPTIONAL" | "INFORMATIONAL";
+  priority: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  mandatory: boolean;
+  confidence_score: number;
+  status: "EXTRACTED" | "REVIEW_REQUIRED" | "ACCEPTED" | "REJECTED";
+  review_required: boolean;
+  evidence_list: RequirementEvidence[];
+}
+
+export default function RFPPlatformPage() {
   const [role, setRole] = useState<"PRODUCT_TEAM" | "VP" | "CTO" | "CEO">("PRODUCT_TEAM");
-  const [projectId, setProjectId] = useState<string>("sample-project-id");
-  const [documents, setDocuments] = useState<RFPDocument[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState<boolean>(false);
-  const [selectedDocVersions, setSelectedDocVersions] = useState<DocumentVersion[] | null>(null);
+  const [activeTab, setActiveTab] = useState<"DOCUMENTS" | "REQUIREMENTS">("REQUIREMENTS");
+  
+  // Requirement Filters
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  // Demo Mock Data for Visual Verification
-  useEffect(() => {
-    setDocuments([
-      {
-        id: "doc-uuid-1",
-        name: "Enterprise_Analytics_RFP_Specification.pdf",
-        document_type: "PDF",
-        status: "ACTIVE",
+  // Selection state
+  const [selectedRequirement, setSelectedRequirement] = useState<Requirement | null>(null);
+  const [extracting, setExtracting] = useState<boolean>(false);
+
+  // Mock State Data
+  const [documents, setDocuments] = useState<RFPDocument[]>([
+    {
+      id: "doc-uuid-1",
+      name: "Enterprise_Analytics_RFP_Specification.pdf",
+      document_type: "PDF",
+      status: "ACTIVE",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      current_version: {
+        id: "ver-uuid-1",
+        version_number: 1,
+        original_filename: "Enterprise_Analytics_RFP_Specification.pdf",
+        content_type: "application/pdf",
+        file_size_bytes: 4521000,
+        checksum_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        processing_status: "COMPLETED",
+        extraction_status: "COMPLETED",
+        processing_completed_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        current_version: {
-          id: "ver-uuid-2",
-          version_number: 2,
-          original_filename: "Enterprise_Analytics_RFP_Specification_v2.pdf",
-          content_type: "application/pdf",
-          file_size_bytes: 4521000,
-          checksum_sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          processing_status: "COMPLETED",
-          processing_started_at: new Date(Date.now() - 60000).toISOString(),
-          processing_completed_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-        },
       },
-      {
-        id: "doc-uuid-2",
-        name: "Technical_Requirements_Matrix.xlsx",
-        document_type: "XLSX",
-        status: "ACTIVE",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        current_version: {
-          id: "ver-uuid-1",
-          version_number: 1,
-          original_filename: "Technical_Requirements_Matrix.xlsx",
-          content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          file_size_bytes: 1240500,
-          checksum_sha256: "a8f5c24298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b811",
-          processing_status: "COMPLETED",
-          processing_started_at: new Date(Date.now() - 30000).toISOString(),
-          processing_completed_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
+    },
+  ]);
+
+  const [requirements, setRequirements] = useState<Requirement[]>([
+    {
+      id: "req-1",
+      requirement_code: "REQ-0001",
+      title: "24x7 Technical Support & 99.9% Uptime SLA",
+      description: "The vendor must provide round-the-clock technical support with guaranteed 99.9% uptime SLA.",
+      category: "SUPPORT",
+      requirement_type: "MANDATORY",
+      priority: "CRITICAL",
+      mandatory: true,
+      confidence_score: 0.96,
+      status: "EXTRACTED",
+      review_required: false,
+      evidence_list: [
+        {
+          id: "ev-1",
+          content_block_id: "block-1",
+          evidence_text: "The vendor must provide 24x7 technical support with 99.9% uptime SLA.",
+          source_type: "CURRENT_RFP",
+          source_reference: "PAGE 1",
+          relevance_score: 1.0,
         },
-      },
-    ]);
-  }, []);
+      ],
+    },
+    {
+      id: "req-2",
+      requirement_code: "REQ-0002",
+      title: "AES-256 Data Encryption & SOC2 Type II Certification",
+      description: "All customer data at rest and in transit must be encrypted using AES-256 and supported by annual SOC2 Type II audits.",
+      category: "SECURITY",
+      requirement_type: "MANDATORY",
+      priority: "CRITICAL",
+      mandatory: true,
+      confidence_score: 0.98,
+      status: "ACCEPTED",
+      review_required: false,
+      evidence_list: [
+        {
+          id: "ev-2",
+          content_block_id: "block-2",
+          evidence_text: "All customer data at rest must be encrypted using AES-256 and SOC2 Type II certified.",
+          source_type: "CURRENT_RFP",
+          source_reference: "PAGE 2",
+          relevance_score: 1.0,
+        },
+      ],
+    },
+    {
+      id: "req-3",
+      requirement_code: "REQ-0003",
+      title: "Optional On-Premise Air-Gapped Deployment",
+      description: "Supplier should ideally support air-gapped on-premise Kubernetes deployments upon enterprise customer request.",
+      category: "TECHNICAL",
+      requirement_type: "OPTIONAL",
+      priority: "MEDIUM",
+      mandatory: false,
+      confidence_score: 0.65,
+      status: "REVIEW_REQUIRED",
+      review_required: true,
+      evidence_list: [
+        {
+          id: "ev-3",
+          content_block_id: "block-3",
+          evidence_text: "Supplier should ideally support air-gapped on-premise deployment options.",
+          source_type: "CURRENT_RFP",
+          source_reference: "SHEET: Compliance Matrix",
+          relevance_score: 0.8,
+        },
+      ],
+    },
+  ]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setError(null);
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const allowedExts = [".pdf", ".docx", ".xlsx", ".pptx"];
-      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+  const handleTriggerExtraction = () => {
+    setExtracting(true);
+    setTimeout(() => {
+      setExtracting(false);
+      alert("AI Requirement Extraction completed! 3 requirements extracted and evidence linked.");
+    }, 1500);
+  };
 
-      if (!allowedExts.includes(ext)) {
-        setError(`Invalid file format '${ext}'. Supported formats: PDF, DOCX, XLSX, PPTX.`);
-        setSelectedFile(null);
-        return;
-      }
-
-      if (file.size > 52428800) {
-        setError(`File size (${(file.size / 1024 / 1024).toFixed(1)}MB) exceeds 50MB limit.`);
-        setSelectedFile(null);
-        return;
-      }
-
-      setSelectedFile(file);
+  const handleReviewAction = (reqId: string, newStatus: "ACCEPTED" | "REJECTED") => {
+    setRequirements((prev) =>
+      prev.map((r) =>
+        r.id === reqId
+          ? { ...r, status: newStatus, review_required: false }
+          : r
+      )
+    );
+    if (selectedRequirement && selectedRequirement.id === reqId) {
+      setSelectedRequirement((prev) =>
+        prev ? { ...prev, status: newStatus, review_required: false } : null
+      );
     }
   };
 
-  const handleUploadNewDoc = () => {
-    if (!selectedFile) return;
-    setUploading(true);
-    setError(null);
-
-    setTimeout(() => {
-      const extName = selectedFile.name.substring(selectedFile.name.lastIndexOf(".")).toUpperCase().replace(".", "");
-      let docType: "PDF" | "DOCX" | "XLSX" | "PPTX" = "PDF";
-      if (extName === "DOCX" || extName === "DOC") docType = "DOCX";
-      else if (extName === "XLSX") docType = "XLSX";
-      else if (extName === "PPTX") docType = "PPTX";
-
-      const newDoc: RFPDocument = {
-        id: `doc-${Date.now()}`,
-        name: selectedFile.name,
-        document_type: docType,
-        status: "ACTIVE",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        current_version: {
-          id: `ver-${Date.now()}`,
-          version_number: 1,
-          original_filename: selectedFile.name,
-          content_type: selectedFile.type || "application/octet-stream",
-          file_size_bytes: selectedFile.size,
-          checksum_sha256: "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
-          processing_status: "COMPLETED",
-          processing_started_at: new Date().toISOString(),
-          processing_completed_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-        },
-      };
-
-      setDocuments((prev) => [newDoc, ...prev]);
-      setSelectedFile(null);
-      setUploading(false);
-    }, 800);
-  };
-
-  const handleDownload = (doc: RFPDocument, versionNumber?: number) => {
-    alert(`Generating secure short-lived Cloudflare R2 presigned GET URL for '${doc.name}' (Version ${versionNumber || doc.current_version?.version_number || 1})...`);
-  };
-
-  const handleProcessRetry = (docId: string) => {
-    setDocuments((prev) =>
-      prev.map((d) =>
-        d.id === docId && d.current_version
-          ? {
-              ...d,
-              current_version: {
-                ...d.current_version,
-                processing_status: "PROCESSING" as const,
-                processing_error: undefined,
-              },
-            }
-          : d
-      )
-    );
-
-    setTimeout(() => {
-      setDocuments((prev) =>
-        prev.map((d) =>
-          d.id === docId && d.current_version
-            ? {
-                ...d,
-                current_version: {
-                  ...d.current_version,
-                  processing_status: "COMPLETED" as const,
-                  processing_completed_at: new Date().toISOString(),
-                },
-              }
-            : d
-        )
-      );
-    }, 1200);
-  };
+  const filteredRequirements = requirements.filter((r) => {
+    if (categoryFilter !== "ALL" && r.category !== categoryFilter) return false;
+    if (priorityFilter !== "ALL" && r.priority !== priorityFilter) return false;
+    if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
+    return true;
+  });
 
   const isProductTeam = role === "PRODUCT_TEAM";
 
+  // Summary Metrics
+  const totalReqs = requirements.length;
+  const mandatoryCount = requirements.filter((r) => r.mandatory).length;
+  const criticalCount = requirements.filter((r) => r.priority === "CRITICAL").length;
+  const reviewRequiredCount = requirements.filter((r) => r.review_required).length;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8 font-sans">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">AI-RFP Document & Text Extraction Engine</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+              <span className="p-2 bg-blue-600/20 text-blue-400 rounded-xl border border-blue-500/30">🤖</span>
+              AI-RFP Requirement Extraction & Evidence Traceability
+            </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Phase 5 — PyMuPDF, python-docx, openpyxl, python-pptx Extraction & Source Metadata Indexing
+              Phase 6 — NVIDIA NIM <code className="text-blue-300 font-mono text-xs">openai/gpt-oss-120b</code> Structured Extraction Engine
             </p>
           </div>
 
@@ -213,172 +228,289 @@ export default function DocumentManagementPage() {
           </div>
         </div>
 
-        {/* Upload Control Card */}
-        {isProductTeam ? (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-slate-200 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 0115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Upload RFP Document
-              </h2>
-              <span className="text-xs text-slate-500 font-mono">Parsers: PyMuPDF (.pdf), python-docx (.docx), openpyxl (.xlsx), python-pptx (.pptx)</span>
-            </div>
+        {/* Navigation Tabs */}
+        <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+          <div className="flex gap-4">
+            <button
+              onClick={() => setActiveTab("REQUIREMENTS")}
+              className={`px-4 py-2 text-sm font-semibold rounded-xl transition ${
+                activeTab === "REQUIREMENTS"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+              }`}
+            >
+              Extracted Requirements ({totalReqs})
+            </button>
+            <button
+              onClick={() => setActiveTab("DOCUMENTS")}
+              className={`px-4 py-2 text-sm font-semibold rounded-xl transition ${
+                activeTab === "DOCUMENTS"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+              }`}
+            >
+              Source Documents ({documents.length})
+            </button>
+          </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <input
-                type="file"
-                accept=".pdf,.docx,.xlsx,.pptx"
-                onChange={handleFileSelect}
-                className="block w-full text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer bg-slate-950 border border-slate-800 rounded-xl"
-              />
-              <button
-                onClick={handleUploadNewDoc}
-                disabled={!selectedFile || uploading}
-                className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-medium text-sm rounded-xl transition shadow-lg shadow-blue-500/20 whitespace-nowrap"
-              >
-                {uploading ? "Uploading & Extracting..." : "Upload Document"}
-              </button>
-            </div>
+          {isProductTeam && activeTab === "REQUIREMENTS" && (
+            <button
+              onClick={handleTriggerExtraction}
+              disabled={extracting}
+              className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-indigo-500/20 transition flex items-center gap-2"
+            >
+              {extracting ? "Extracting Requirements..." : "⚡ Run AI Requirement Extraction"}
+            </button>
+          )}
+        </div>
 
-            {error && (
-              <div className="p-3 bg-red-950/60 border border-red-800 rounded-xl text-red-300 text-xs font-medium">
-                ⚠️ {error}
+        {activeTab === "REQUIREMENTS" && (
+          <div className="space-y-6">
+            
+            {/* Metric Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Requirements</div>
+                <div className="text-3xl font-extrabold text-white mt-1">{totalReqs}</div>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="p-4 bg-slate-900/50 border border-slate-800/60 rounded-xl text-slate-400 text-xs flex items-center gap-2">
-            <span>🔒 Read-only view active for role <strong className="text-slate-200">{role}</strong>. Document upload and re-processing controls are disabled.</span>
-          </div>
-        )}
-
-        {/* Document List Table */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-          <div className="p-5 border-b border-slate-800 flex justify-between items-center">
-            <h2 className="text-base font-semibold text-slate-200">RFP Project Documents & Extraction Lifecycle</h2>
-            <span className="text-xs bg-slate-800 text-slate-400 px-2.5 py-1 rounded-full font-mono">{documents.length} Files</span>
-          </div>
-
-          {documents.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 text-sm">
-              No documents uploaded for this RFP Project yet.
+              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Mandatory</div>
+                <div className="text-3xl font-extrabold text-blue-400 mt-1">{mandatoryCount}</div>
+              </div>
+              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Critical Priority</div>
+                <div className="text-3xl font-extrabold text-red-400 mt-1">{criticalCount}</div>
+              </div>
+              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
+                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Review Required</div>
+                <div className="text-3xl font-extrabold text-amber-400 mt-1">{reviewRequiredCount}</div>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
-                <thead className="bg-slate-950/60 text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-800">
-                  <tr>
-                    <th className="px-6 py-4">Document Name</th>
-                    <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4">Version</th>
-                    <th className="px-6 py-4">Text Processing Status</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {documents.map((doc) => {
-                    const status = doc.current_version?.processing_status || "PENDING";
-                    return (
-                      <tr key={doc.id} className="hover:bg-slate-800/40 transition">
-                        <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
-                          <span className="p-2 bg-slate-800 rounded-lg text-blue-400">📄</span>
-                          {doc.name}
-                        </td>
-                        <td className="px-6 py-4 font-mono text-xs text-slate-400">{doc.document_type}</td>
+
+            {/* Filter Bar */}
+            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-wrap items-center gap-4 text-xs font-medium">
+              <span className="text-slate-400 font-semibold uppercase tracking-wider">Filter By:</span>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Category:</span>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
+                >
+                  <option value="ALL">All Categories</option>
+                  <option value="SUPPORT">SUPPORT</option>
+                  <option value="SECURITY">SECURITY</option>
+                  <option value="TECHNICAL">TECHNICAL</option>
+                  <option value="COMPLIANCE">COMPLIANCE</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Priority:</span>
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
+                >
+                  <option value="ALL">All Priorities</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="LOW">LOW</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400">Status:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="EXTRACTED">EXTRACTED</option>
+                  <option value="REVIEW_REQUIRED">REVIEW_REQUIRED</option>
+                  <option value="ACCEPTED">ACCEPTED</option>
+                  <option value="REJECTED">REJECTED</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Requirements Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-slate-300">
+                  <thead className="bg-slate-950/60 text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-800">
+                    <tr>
+                      <th className="px-6 py-4">Code</th>
+                      <th className="px-6 py-4">Requirement Title</th>
+                      <th className="px-6 py-4">Category</th>
+                      <th className="px-6 py-4">Type</th>
+                      <th className="px-6 py-4">Priority</th>
+                      <th className="px-6 py-4">Confidence</th>
+                      <th className="px-6 py-4">Status</th>
+                      <th className="px-6 py-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {filteredRequirements.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-800/40 transition">
+                        <td className="px-6 py-4 font-mono text-xs font-semibold text-blue-400">{req.requirement_code}</td>
+                        <td className="px-6 py-4 font-medium text-white max-w-xs truncate">{req.title}</td>
                         <td className="px-6 py-4">
-                          <span className="px-2.5 py-1 bg-blue-950 text-blue-300 font-mono text-xs font-semibold rounded-md border border-blue-800">
-                            v{doc.current_version?.version_number || 1}
+                          <span className="px-2 py-0.5 bg-slate-800 text-slate-300 text-xs font-mono rounded border border-slate-700">
+                            {req.category}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <span
-                            className={`px-2.5 py-1 text-xs font-semibold rounded-full border inline-flex items-center gap-1.5 ${
-                              status === "COMPLETED"
-                                ? "bg-emerald-950 text-emerald-300 border-emerald-800"
-                                : status === "PROCESSING"
-                                ? "bg-blue-950 text-blue-300 border-blue-800 animate-pulse"
-                                : status === "FAILED"
-                                ? "bg-red-950 text-red-300 border-red-800"
-                                : "bg-slate-800 text-slate-400 border-slate-700"
-                            }`}
-                          >
-                            {status === "COMPLETED" && "✓ "}
-                            {status === "PROCESSING" && "⚙ "}
-                            {status === "FAILED" && "✖ "}
-                            {status}
+                          <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${
+                            req.mandatory
+                              ? "bg-blue-950 text-blue-300 border-blue-800"
+                              : "bg-slate-800 text-slate-400 border-slate-700"
+                          }`}>
+                            {req.requirement_type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-0.5 text-xs font-semibold rounded border ${
+                            req.priority === "CRITICAL"
+                              ? "bg-red-950 text-red-300 border-red-800"
+                              : req.priority === "HIGH"
+                              ? "bg-amber-950 text-amber-300 border-amber-800"
+                              : "bg-slate-800 text-slate-400 border-slate-700"
+                          }`}>
+                            {req.priority}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 font-mono text-xs text-slate-300">
+                          {(req.confidence_score * 100).toFixed(0)}%
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full border inline-flex items-center gap-1 ${
+                            req.status === "ACCEPTED"
+                              ? "bg-emerald-950 text-emerald-300 border-emerald-800"
+                              : req.status === "REJECTED"
+                              ? "bg-red-950 text-red-300 border-red-800"
+                              : req.status === "REVIEW_REQUIRED"
+                              ? "bg-amber-950 text-amber-300 border-amber-800"
+                              : "bg-slate-800 text-slate-300 border-slate-700"
+                          }`}>
+                            {req.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right space-x-3">
                           <button
-                            onClick={() => handleDownload(doc)}
+                            onClick={() => setSelectedRequirement(req)}
                             className="text-xs text-blue-400 hover:text-blue-300 font-medium hover:underline"
                           >
-                            Download
+                            View Evidence
                           </button>
-
-                          <button
-                            onClick={() => setSelectedDocVersions(doc.current_version ? [doc.current_version] : [])}
-                            className="text-xs text-slate-400 hover:text-slate-200 font-medium hover:underline"
-                          >
-                            Versions
-                          </button>
-
-                          {isProductTeam && (
-                            <button
-                              onClick={() => handleProcessRetry(doc.id)}
-                              className="text-xs text-purple-400 hover:text-purple-300 font-medium hover:underline"
-                            >
-                              Reprocess
-                            </button>
-                          )}
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Version & Extraction Metadata Drawer/Modal */}
-        {selectedDocVersions && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h3 className="text-lg font-bold text-white">Version & Extraction Metadata</h3>
+        {activeTab === "DOCUMENTS" && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl p-6">
+            <h2 className="text-base font-semibold text-slate-200 mb-4">Source RFP Documents</h2>
+            <ul className="divide-y divide-slate-800">
+              {documents.map((d) => (
+                <li key={d.id} className="py-4 flex justify-between items-center">
+                  <div>
+                    <div className="font-semibold text-white">{d.name}</div>
+                    <div className="text-xs text-slate-400 font-mono mt-0.5">
+                      Type: {d.document_type} | Version: v{d.current_version?.version_number} | Extraction Status: {d.current_version?.extraction_status || "PENDING"}
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800">
+                    {d.current_version?.processing_status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Evidence Traceability & Human Review Modal/Drawer */}
+        {selectedRequirement && (
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-6 shadow-2xl">
+              
+              <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+                <div>
+                  <span className="text-xs font-mono text-blue-400 font-semibold">{selectedRequirement.requirement_code}</span>
+                  <h3 className="text-lg font-bold text-white mt-1">{selectedRequirement.title}</h3>
+                </div>
                 <button
-                  onClick={() => setSelectedDocVersions(null)}
+                  onClick={() => setSelectedRequirement(null)}
                   className="text-slate-400 hover:text-white text-sm"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {selectedDocVersions.map((v) => (
-                  <div key={v.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-sm text-slate-200">
-                        Version {v.version_number} — {v.original_filename}
-                      </span>
-                      <span className="text-xs font-semibold px-2 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-800 rounded">
-                        {v.processing_status}
-                      </span>
-                    </div>
+              {/* Description & Classification Badges */}
+              <div className="space-y-3">
+                <p className="text-slate-300 text-sm">{selectedRequirement.description}</p>
+                <div className="flex flex-wrap gap-2 text-xs font-medium">
+                  <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                    Category: {selectedRequirement.category}
+                  </span>
+                  <span className="px-2.5 py-1 bg-blue-950 text-blue-300 rounded border border-blue-800">
+                    Type: {selectedRequirement.requirement_type}
+                  </span>
+                  <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                    Priority: {selectedRequirement.priority}
+                  </span>
+                  <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded border border-slate-700">
+                    Confidence: {(selectedRequirement.confidence_score * 100).toFixed(0)}%
+                  </span>
+                </div>
+              </div>
 
-                    <div className="text-slate-500 font-mono text-xs space-y-1">
-                      <div>SHA256: {v.checksum_sha256}</div>
-                      <div>Size: {(v.file_size_bytes / 1024).toFixed(1)} KB</div>
-                      {v.processing_completed_at && (
-                        <div className="text-slate-400">Processed At: {new Date(v.processing_completed_at).toLocaleString()}</div>
-                      )}
+              {/* Linked Authoritative Evidence Panel */}
+              <div className="space-y-3">
+                <h4 className="text-xs uppercase font-bold tracking-wider text-slate-400">Authoritative RFP Source Evidence</h4>
+                {selectedRequirement.evidence_list.map((ev) => (
+                  <div key={ev.id} className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+                    <div className="flex justify-between items-center text-xs font-mono text-slate-400">
+                      <span className="text-blue-400 font-semibold">📍 Source Reference: {ev.source_reference}</span>
+                      <span>Source: {ev.source_type}</span>
                     </div>
+                    <blockquote className="text-xs italic text-slate-200 border-l-2 border-blue-500 pl-3 py-1 bg-slate-900/50 rounded-r-lg">
+                      "{ev.evidence_text}"
+                    </blockquote>
                   </div>
                 ))}
               </div>
+
+              {/* Human Review Actions */}
+              {isProductTeam && (
+                <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
+                  <span className="text-xs text-slate-400">Human-in-the-Loop Review:</span>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleReviewAction(selectedRequirement.id, "REJECTED")}
+                      className="px-4 py-2 bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 font-semibold text-xs rounded-xl transition"
+                    >
+                      Reject Requirement
+                    </button>
+                    <button
+                      onClick={() => handleReviewAction(selectedRequirement.id, "ACCEPTED")}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition shadow-lg shadow-emerald-500/20"
+                    >
+                      Accept Requirement
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         )}

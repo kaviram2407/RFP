@@ -86,7 +86,14 @@ class DocumentVersion(Base):
     processing_completed_at = Column(DateTime(timezone=True), nullable=True)
     processing_error = Column(Text, nullable=True)
 
+    # Requirement extraction lifecycle fields
+    extraction_status = Column(String, nullable=False, default="PENDING")
+    extraction_started_at = Column(DateTime(timezone=True), nullable=True)
+    extraction_completed_at = Column(DateTime(timezone=True), nullable=True)
+    extraction_error = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
 
     document = relationship(
         "RFPDocument",

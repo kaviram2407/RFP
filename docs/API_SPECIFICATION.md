@@ -24,3 +24,11 @@
 - `GET .../processing`: Get processing status (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`).
 - `POST .../process`: Trigger or retry document text extraction (`PRODUCT_TEAM` only).
 - `GET .../content`: Retrieve extracted full text and structural blocks (`PAGE`, `PARAGRAPH`, `SHEET`, `SLIDE`).
+
+## Requirement Extraction (`/api/v1/rfp-projects/{project_id}`)
+- `POST .../requirement-extraction`: Trigger AI requirement extraction (`PRODUCT_TEAM` only).
+- `GET .../requirement-extraction`: Check extraction status (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`).
+- `GET .../requirements`: List requirements with pagination & category/priority/status filters.
+- `GET .../requirements/{requirement_id}`: Get single requirement details with linked evidence list.
+- `GET .../requirements/{requirement_id}/evidence`: List linked source evidence blocks.
+- `PATCH .../requirements/{requirement_id}`: Human-in-the-loop review actions (`ACCEPTED`, `REJECTED`, edit fields) (`PRODUCT_TEAM` only).

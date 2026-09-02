@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     R2_ENDPOINT_URL: str = ""
     R2_REGION: str = "auto"
 
+    # NVIDIA LLM & Requirement Extraction
+    NVIDIA_API_KEY: str = ""
+    NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
+    NVIDIA_LLM_MODEL: str = "openai/gpt-oss-120b"
+    LLM_REQUEST_TIMEOUT_SECONDS: int = 120
+    REQUIREMENT_EXTRACTION_CONFIDENCE_THRESHOLD: float = 0.7
+    REQUIREMENT_EXTRACTION_CONTEXT_SIZE: int = 8000
+
+
 
 
     model_config = SettingsConfigDict(
