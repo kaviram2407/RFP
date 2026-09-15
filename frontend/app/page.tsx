@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "../lib/auth-context";
 import { LoginPage } from "../components/login-page";
 import { RFPProjectsWorkspace } from "../components/rfp-projects-workspace";
+import CompanyKnowledgeWorkspace from "../components/company-knowledge-workspace";
 
 interface RequirementEvidence {
   id: string;
@@ -351,6 +352,9 @@ export default function RFPPlatformPage() {
 
         {/* TAB: REAL RFP PROJECTS WORKSPACE (F2) */}
         {activeTab === "PROJECTS" && <RFPProjectsWorkspace />}
+
+        {/* TAB: REAL COMPANY KNOWLEDGE & HYBRID RAG SEARCH (F5) */}
+        {activeTab === "KNOWLEDGE" && <CompanyKnowledgeWorkspace userRole={user.role} />}
 
         {/* TAB: REQUIREMENTS (Mock - Scheduled for F4) */}
         {activeTab === "REQUIREMENTS" && (

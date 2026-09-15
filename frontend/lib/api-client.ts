@@ -605,4 +605,188 @@ export async function updateRequirementApi(
   );
 }
 
+/* ============================================================================
+   Company Knowledge & Hybrid Vector Search APIs (Phase 7)
+   ============================================================================ */
+
+export type KnowledgeTypeEnum =
+  | "COMPANY_PROFILE"
+  | "PRODUCT"
+  | "SERVICE"
+  | "TECHNICAL_CAPABILITY"
+  | "SECURITY"
+  | "COMPLIANCE"
+  | "CERTIFICATION"
+  | "IMPLEMENTATION"
+  | "SUPPORT"
+  | "CASE_STUDY"
+  | "POLICY"
+  | "STANDARD"
+  | "OTHER";
+
+export type KnowledgeStatusEnum = "DRAFT" | "ACTIVE" | "ARCHIVED";
+export type AuthorityLevelEnum = "AUTHORITATIVE" | "APPROVED" | "INTERNAL" | "REFERENCE";
+
+export interface KnowledgeDocumentCreate {
+  title: string;
+  description?: string | null;
+  knowledge_type: KnowledgeTypeEnum;
+  source_name?: string | null;
+  source_reference?: string | null;
+  authority_level?: AuthorityLevelEnum;
+  raw_content?: string | null;
+}
+
+export interface KnowledgeDocumentUpdate {
+  title?: string | null;
+  description?: string | null;
+  knowledge_type?: KnowledgeTypeEnum | null;
+  source_name?: string | null;
+  source_reference?: string | null;
+  status?: KnowledgeStatusEnum | null;
+  authority_level?: AuthorityLevelEnum | null;
+}
+
+export interface KnowledgeVersionCreate {
+  raw_content: string;
+  original_filename?: string | null;
+}
+
+export interface KnowledgeVersionResponse {
+  id: string;
+  knowledge_document_id: string;
+  version_number: number;
+  original_filename?: string | null;
+  processing_status: ProcessingStatusEnum;
+  processing_started_at?: string | null;
+  processing_completed_at?: string | null;
+  processing_error?: string | null;
+  created_at: string;
+}
+
+export interface CompanyKnowledgeDocumentResponse {
+  id: string;
+  organization_id: string;
+  created_by_id: string;
+  title: string;
+  description?: string | null;
+  knowledge_type: KnowledgeTypeEnum;
+  source_name?: string | null;
+  source_reference?: string | null;
+  status: KnowledgeStatusEnum;
+  authority_level: AuthorityLevelEnum;
+  effective_from?: string | null;
+  effective_until?: string | null;
+  created_at: string;
+  updated_at: string;
+  versions: KnowledgeVersionResponse[];
+}
+
+export interface KnowledgeSearchRequest {
+  query: string;
+  top_k?: number;
+  knowledge_types?: KnowledgeTypeEnum[];
+  authority_levels?: AuthorityLevelEnum[];
+}
+
+export interface HybridRetrievalResultResponse {
+  chunk_id: string;
+  knowledge_document_id: string;
+  knowledge_version_id: string;
+  title: string;
+  content: string;
+  final_score: number;
+  semantic_score: number;
+  lexical_score: number;
+  authority_level: string;
+  knowledge_type: string;
+  source_metadata?: Record<string, any> | null;
+  created_at: string;
+}
+
+export interface KnowledgeSearchResponse {
+  query: string;
+  total: number;
+  results: HybridRetrievalResultResponse[];
+}
+
+export async function createKnowledgeDocumentApi(
+  data: KnowledgeDocumentCreate
+): Promise<CompanyKnowledgeDocumentResponse> {
+  return apiFetch<CompanyKnowledgeDocumentResponse>("/api/v1/company-knowledge", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function listKnowledgeDocumentsApi(filters?: {
+  knowledge_type?: KnowledgeTypeEnum;
+  status?: KnowledgeStatusEnum;
+  authority_level?: AuthorityLevelEnum;
+}): Promise<CompanyKnowledgeDocumentResponse[]> {
+  const params = new URLSearchParams();
+  if (filters?.knowledge_type) params.append("knowledge_type", filters.knowledge_type);
+  if (filters?.status) params.append("status", filters.status);
+  if (filters?.authority_level) params.append("authority_level", filters.authority_level);
+
+  let url = "/api/v1/company-knowledge";
+  if (params.toString()) {
+    url += `?${params.toString()}`;
+  }
+
+  return apiFetch<CompanyKnowledgeDocumentResponse[]>(url);
+}
+
+export async function getKnowledgeDocumentApi(
+  documentId: string
+): Promise<CompanyKnowledgeDocumentResponse> {
+  return apiFetch<CompanyKnowledgeDocumentResponse>(`/api/v1/company-knowledge/${documentId}`);
+}
+
+export async function updateKnowledgeDocumentApi(
+  documentId: string,
+  data: KnowledgeDocumentUpdate
+): Promise<CompanyKnowledgeDocumentResponse> {
+  return apiFetch<CompanyKnowledgeDocumentResponse>(`/api/v1/company-knowledge/${documentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function addKnowledgeVersionApi(
+  documentId: string,
+  data: KnowledgeVersionCreate
+): Promise<KnowledgeVersionResponse> {
+  return apiFetch<KnowledgeVersionResponse>(
+    `/api/v1/company-knowledge/${documentId}/versions`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function searchCompanyKnowledgeApi(
+  data: KnowledgeSearchRequest
+): Promise<KnowledgeSearchResponse> {
+  return apiFetch<KnowledgeSearchResponse>("/api/v1/knowledge/search", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function findEvidenceForRequirementApi(
+  projectId: string,
+  requirementId: string,
+  topK: number = 5
+): Promise<KnowledgeSearchResponse> {
+  return apiFetch<KnowledgeSearchResponse>(
+    `/api/v1/rfp-projects/${projectId}/requirements/${requirementId}/find-evidence?top_k=${topK}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+
 
