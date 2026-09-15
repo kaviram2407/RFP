@@ -65,6 +65,23 @@ source .venv/bin/activate
 uvicorn app.main:app --reload
 ```
 
+### 3. File Storage Configuration (`STORAGE_PROVIDER`)
+
+The application supports both **Local File Storage** (default for development) and **Cloudflare R2** (for production):
+
+- **Local Storage (Default for Development)**:
+  - `STORAGE_PROVIDER=local`
+  - `LOCAL_STORAGE_DIR=storage`
+  - Stores uploaded files locally inside the `backend/storage/` directory (excluded from Git).
+  - **No Cloudflare account, credit card, or R2 credentials are required for local development.**
+
+- **Cloudflare R2 (Production Deployment)**:
+  - `STORAGE_PROVIDER=r2`
+  - `R2_ACCOUNT_ID=...`
+  - `R2_ACCESS_KEY_ID=...`
+  - `R2_SECRET_ACCESS_KEY=...`
+  - `R2_BUCKET_NAME=...`
+
 ### Health check
 
 You can verify the backend is running and connected to services via the health check endpoint:

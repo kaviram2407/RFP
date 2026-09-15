@@ -1,29 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
-interface DocumentVersion {
-  id: string;
-  version_number: number;
-  original_filename: string;
-  content_type: string;
-  file_size_bytes: number;
-  checksum_sha256: string;
-  processing_status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  extraction_status?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  processing_completed_at?: string;
-  created_at: string;
-}
-
-interface RFPDocument {
-  id: string;
-  name: string;
-  document_type: "PDF" | "DOCX" | "XLSX" | "PPTX";
-  status: "ACTIVE" | "ARCHIVED";
-  current_version?: DocumentVersion;
-  created_at: string;
-  updated_at: string;
-}
+import { useState } from "react";
+import { useAuth } from "../lib/auth-context";
+import { LoginPage } from "../components/login-page";
+import { RFPProjectsWorkspace } from "../components/rfp-projects-workspace";
 
 interface RequirementEvidence {
   id: string;
@@ -106,11 +86,9 @@ interface HistoricalProposalResult {
 }
 
 export default function RFPPlatformPage() {
-  const [role, setRole] = useState<"PRODUCT_TEAM" | "VP" | "CTO" | "CEO">("PRODUCT_TEAM");
-  const [activeTab, setActiveTab] = useState<"REQUIREMENTS" | "KNOWLEDGE" | "PROPOSALS" | "SEARCH" | "PROPOSAL_SEARCH">("REQUIREMENTS");
-  
-  // Requirement Filters
-  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const { user, loading, logout } = useAuth();
+
+  const [activeTab, setActiveTab] = useState<"PROJECTS" | "REQUIREMENTS" | "KNOWLEDGE" | "PROPOSALS" | "SEARCH" | "PROPOSAL_SEARCH">("PROJECTS");
 
   // RAG Search State
   const [searchQuery, setSearchQuery] = useState<string>("SOC2 Type II compliance and AES-256 data encryption");
@@ -123,7 +101,6 @@ export default function RFPPlatformPage() {
   const [propSearching, setPropSearching] = useState<boolean>(false);
 
   // Modals & Form
-  const [showAddKnowledgeModal, setShowAddKnowledgeModal] = useState<boolean>(false);
   const [showAddProposalModal, setShowAddProposalModal] = useState<boolean>(false);
 
   // Proposal Form
@@ -132,29 +109,6 @@ export default function RFPPlatformPage() {
   const [newPropCust, setNewPropCust] = useState("");
   const [newPropOutcome, setNewPropOutcome] = useState<"WON" | "LOST" | "NO_DECISION">("WON");
   const [newPropContent, setNewPropContent] = useState("");
-
-  const [knowledgeDocs, setKnowledgeDocs] = useState<CompanyKnowledgeDocument[]>([
-    {
-      id: "know-1",
-      title: "Enterprise Security & Compliance Standard 2026",
-      description: "Annual SOC2 Type II audit, ISO 27001 certifications, and AES-256 data encryption policies.",
-      knowledge_type: "SECURITY",
-      status: "ACTIVE",
-      authority_level: "AUTHORITATIVE",
-      version_count: 2,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "know-2",
-      title: "Global Technical Support & SLA Policy",
-      description: "24x7 phone, email, and live chat technical support coverage with 99.9% guaranteed uptime SLA.",
-      knowledge_type: "SUPPORT",
-      status: "ACTIVE",
-      authority_level: "APPROVED",
-      version_count: 1,
-      created_at: new Date().toISOString(),
-    },
-  ]);
 
   const [proposals, setProposals] = useState<PreviousProposal[]>([
     {
@@ -169,21 +123,9 @@ export default function RFPPlatformPage() {
       version_count: 2,
       created_at: new Date().toISOString(),
     },
-    {
-      id: "prop-2",
-      title: "Apex Logistics Cloud RFP 2024",
-      proposal_reference: "PROP-2024-042",
-      customer_name: "Apex Logistics",
-      description: "Historical submission for custom logistics analytics pipeline.",
-      proposal_date: "2024-06-20",
-      outcome: "LOST",
-      status: "APPROVED",
-      version_count: 1,
-      created_at: new Date().toISOString(),
-    },
   ]);
 
-  const [requirements, setRequirements] = useState<Requirement[]>([
+  const [requirements] = useState<Requirement[]>([
     {
       id: "req-1",
       requirement_code: "REQ-0001",
@@ -198,21 +140,30 @@ export default function RFPPlatformPage() {
       review_required: false,
       evidence_list: [],
     },
-    {
-      id: "req-2",
-      requirement_code: "REQ-0002",
-      title: "AES-256 Data Encryption & SOC2 Type II Certification",
-      description: "All customer data at rest and in transit must be encrypted using AES-256 and supported by annual SOC2 Type II audits.",
-      category: "SECURITY",
-      requirement_type: "MANDATORY",
-      priority: "CRITICAL",
-      mandatory: true,
-      confidence_score: 0.98,
-      status: "ACCEPTED",
-      review_required: false,
-      evidence_list: [],
-    },
   ]);
+
+  // Loading Screen
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center space-y-4">
+        <svg className="animate-spin h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+        <p className="text-sm font-mono text-slate-400">Verifying session with FastAPI backend...</p>
+      </div>
+    );
+  }
+
+  // Unauthenticated -> Show Login Page
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  // Authenticated State -> Derived from real backend user role
+  const isProductTeam = user.role === "PRODUCT_TEAM";
+  const approvedPropCount = proposals.filter((p) => p.status === "APPROVED").length;
+  const wonPropCount = proposals.filter((p) => p.outcome === "WON").length;
 
   const handlePerformRAGSearch = (queryOverride?: string) => {
     const q = queryOverride || searchQuery;
@@ -292,10 +243,6 @@ export default function RFPPlatformPage() {
     setNewPropContent("");
   };
 
-  const isProductTeam = role === "PRODUCT_TEAM";
-  const approvedPropCount = proposals.filter((p) => p.status === "APPROVED").length;
-  const wonPropCount = proposals.filter((p) => p.outcome === "WON").length;
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8 font-sans">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -308,29 +255,57 @@ export default function RFPPlatformPage() {
               AI-RFP Intelligence Platform
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Phase 8 — Previous Proposal Intelligence & Historical Evidence Engine
+              F2 — Real RFP Project Management & Organization Workspace
             </p>
           </div>
 
-          {/* Role Switcher */}
-          <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 p-2 rounded-xl">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider pl-2">Role Context:</span>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as any)}
-              className="bg-slate-800 border border-slate-700 text-slate-200 text-xs font-medium rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          {/* User & Backend RBAC Session Card */}
+          <div className="flex items-center gap-4 bg-slate-900 border border-slate-800 p-3 rounded-2xl shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow">
+                {user.full_name ? user.full_name.charAt(0).toUpperCase() : "U"}
+              </div>
+              <div className="text-left">
+                <div className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>{user.full_name}</span>
+                  <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded-md border ${
+                    user.role === "PRODUCT_TEAM"
+                      ? "bg-blue-950 text-blue-300 border-blue-800"
+                      : user.role === "VP"
+                      ? "bg-emerald-950 text-emerald-300 border-emerald-800"
+                      : user.role === "CTO"
+                      ? "bg-indigo-950 text-indigo-300 border-indigo-800"
+                      : "bg-purple-950 text-purple-300 border-purple-800"
+                  }`}>
+                    {user.role}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">{user.email}</div>
+              </div>
+            </div>
+
+            <button
+              onClick={logout}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-red-950 hover:text-red-300 border border-slate-700 hover:border-red-800 text-slate-300 text-xs font-semibold rounded-xl transition"
             >
-              <option value="PRODUCT_TEAM">Product Team (Full Write)</option>
-              <option value="VP">VP (Read Only)</option>
-              <option value="CTO">CTO (Read Only)</option>
-              <option value="CEO">CEO (Read Only)</option>
-            </select>
+              Sign Out
+            </button>
           </div>
         </div>
 
         {/* Main Navigation Tabs */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-4">
           <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setActiveTab("PROJECTS")}
+              className={`px-4 py-2 text-sm font-semibold rounded-xl transition flex items-center gap-2 ${
+                activeTab === "PROJECTS"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+              }`}
+            >
+              <span>📁</span> RFP Projects (Real API)
+            </button>
             <button
               onClick={() => setActiveTab("REQUIREMENTS")}
               className={`px-4 py-2 text-sm font-semibold rounded-xl transition ${
@@ -339,7 +314,7 @@ export default function RFPPlatformPage() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900"
               }`}
             >
-              RFP Requirements ({requirements.length})
+              RFP Requirements
             </button>
             <button
               onClick={() => setActiveTab("KNOWLEDGE")}
@@ -359,7 +334,7 @@ export default function RFPPlatformPage() {
                   : "text-slate-400 hover:text-white hover:bg-slate-900"
               }`}
             >
-              Previous Proposals ({approvedPropCount} Approved)
+              Previous Proposals
             </button>
             <button
               onClick={() => setActiveTab("PROPOSAL_SEARCH")}
@@ -372,21 +347,18 @@ export default function RFPPlatformPage() {
               Historical Proposal Search
             </button>
           </div>
-
-          {isProductTeam && activeTab === "PROPOSALS" && (
-            <button
-              onClick={() => setShowAddProposalModal(true)}
-              className="px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-indigo-500/20 transition"
-            >
-              + Add Previous Proposal
-            </button>
-          )}
         </div>
 
-        {/* TAB 1: REQUIREMENTS */}
+        {/* TAB: REAL RFP PROJECTS WORKSPACE (F2) */}
+        {activeTab === "PROJECTS" && <RFPProjectsWorkspace />}
+
+        {/* TAB: REQUIREMENTS (Mock - Scheduled for F4) */}
         {activeTab === "REQUIREMENTS" && (
           <div className="space-y-6">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+                <span className="text-xs font-mono text-slate-400">RFP Requirements View (Mock - F4 Integration Pending)</span>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-slate-300">
                   <thead className="bg-slate-950/60 text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-800">
@@ -428,34 +400,12 @@ export default function RFPPlatformPage() {
           </div>
         )}
 
-        {/* TAB: PREVIOUS PROPOSALS */}
+        {/* TAB: PREVIOUS PROPOSALS (Mock - Scheduled for F6) */}
         {activeTab === "PROPOSALS" && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Proposals</div>
-                <div className="text-3xl font-extrabold text-white mt-1">{proposals.length}</div>
-              </div>
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Approved (Searchable)</div>
-                <div className="text-3xl font-extrabold text-emerald-400 mt-1">{approvedPropCount}</div>
-              </div>
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Won Proposals</div>
-                <div className="text-3xl font-extrabold text-indigo-400 mt-1">{wonPropCount}</div>
-              </div>
-              <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl shadow-lg">
-                <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Lost Proposals</div>
-                <div className="text-3xl font-extrabold text-amber-400 mt-1">
-                  {proposals.filter((p) => p.outcome === "LOST").length}
-                </div>
-              </div>
-            </div>
-
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
               <div className="p-5 border-b border-slate-800 flex justify-between items-center">
-                <h2 className="text-base font-semibold text-slate-200">Historical Proposal Repository</h2>
-                <span className="text-xs font-mono text-slate-400">pgvector 2048-dim Indexing</span>
+                <h2 className="text-base font-semibold text-slate-200">Historical Proposal Repository (Mock - F6 Integration Pending)</h2>
               </div>
               <div className="divide-y divide-slate-800">
                 {proposals.map((p) => (
@@ -470,21 +420,9 @@ export default function RFPPlatformPage() {
                         }`}>
                           {p.outcome}
                         </span>
-                        <span className="px-2 py-0.5 bg-blue-950 text-blue-300 text-xs font-semibold rounded border border-blue-800">
-                          {p.status}
-                        </span>
                       </div>
                       <p className="text-xs text-slate-400">{p.description}</p>
-                      <div className="text-slate-500 text-xs font-mono">
-                        Ref: {p.proposal_reference} | Customer: {p.customer_name} | Date: {p.proposal_date}
-                      </div>
                     </div>
-
-                    {isProductTeam && (
-                      <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl transition">
-                        Manage Versions ({p.version_count})
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
@@ -492,158 +430,27 @@ export default function RFPPlatformPage() {
           </div>
         )}
 
-        {/* TAB: HISTORICAL PROPOSAL SEARCH */}
+        {/* TAB: HISTORICAL PROPOSAL SEARCH (Mock - Scheduled for F6) */}
         {activeTab === "PROPOSAL_SEARCH" && (
           <div className="space-y-6">
             <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl space-y-4">
-              <h2 className="text-base font-semibold text-slate-200">Historical Proposal Search Engine</h2>
+              <h2 className="text-base font-semibold text-slate-200">Historical Proposal Search Engine (Mock - F6 Pending)</h2>
               
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   type="text"
                   value={propSearchQuery}
                   onChange={(e) => setPropSearchQuery(e.target.value)}
-                  placeholder="Enter RFP requirement or historical response query..."
-                  className="flex-1 bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="Enter RFP requirement query..."
+                  className="flex-1 bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-4 py-2.5 text-sm"
                 />
                 <button
                   onClick={() => handlePerformProposalSearch()}
                   disabled={propSearching}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition shadow-lg shadow-indigo-500/20 whitespace-nowrap"
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl"
                 >
-                  {propSearching ? "Searching Proposals..." : "Search Historical Evidence"}
+                  {propSearching ? "Searching..." : "Search Historical Evidence"}
                 </button>
-              </div>
-            </div>
-
-            {/* Results Display */}
-            {propSearchResults.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
-                  Ranked Historical Proposal Evidence ({propSearchResults.length})
-                </h3>
-
-                <div className="space-y-4">
-                  {propSearchResults.map((res, idx) => (
-                    <div key={res.section_id} className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-3 shadow-lg border-l-4 border-l-indigo-500">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                          <span className="px-2.5 py-1 bg-indigo-950 text-indigo-300 font-mono text-xs font-bold rounded">
-                            HISTORICAL PROPOSAL
-                          </span>
-                          <h4 className="font-bold text-white text-base">{res.proposal_title}</h4>
-                          <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 text-xs font-semibold rounded border border-emerald-800">
-                            {res.outcome}
-                          </span>
-                        </div>
-                        <div className="text-right font-mono text-xs">
-                          <div className="text-indigo-400 font-bold text-sm">{(res.final_score * 100).toFixed(1)}% Match</div>
-                          <div className="text-slate-500">Recency Signal: {(res.recency_score * 100).toFixed(0)}%</div>
-                        </div>
-                      </div>
-
-                      <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl text-amber-200 text-xs font-semibold">
-                        ⚠️ HISTORICAL EVIDENCE — NOT CURRENT COMPANY TRUTH. Verify current capabilities before reusing.
-                      </div>
-
-                      <blockquote className="text-slate-200 text-sm border-l-2 border-indigo-400 pl-4 py-2 bg-slate-950/60 rounded-r-xl">
-                        "{res.content}"
-                      </blockquote>
-
-                      <div className="text-xs text-slate-500 font-mono flex justify-between">
-                        <span>Ref: {res.proposal_reference} | Customer: {res.customer_name}</span>
-                        <span>Source Location: {res.source_metadata?.section || "Implementation Section"}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Modal: Add Previous Proposal */}
-        {showAddProposalModal && (
-          <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h3 className="text-lg font-bold text-white">Add Previous Proposal</h3>
-                <button onClick={() => setShowAddProposalModal(false)} className="text-slate-400 hover:text-white">✕</button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-400 uppercase">Proposal Title</label>
-                  <input
-                    type="text"
-                    value={newPropTitle}
-                    onChange={(e) => setNewPropTitle(e.target.value)}
-                    placeholder="e.g. Global Bank Analytics RFP Proposal"
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-4 py-2 text-sm mt-1"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 uppercase">Proposal Reference</label>
-                    <input
-                      type="text"
-                      value={newPropRef}
-                      onChange={(e) => setNewPropRef(e.target.value)}
-                      placeholder="PROP-2025-099"
-                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2 text-sm mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-slate-400 uppercase">Outcome</label>
-                    <select
-                      value={newPropOutcome}
-                      onChange={(e) => setNewPropOutcome(e.target.value as any)}
-                      className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-3 py-2 text-sm mt-1"
-                    >
-                      <option value="WON">WON</option>
-                      <option value="LOST">LOST</option>
-                      <option value="NO_DECISION">NO_DECISION</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-400 uppercase">Customer Name</label>
-                  <input
-                    type="text"
-                    value={newPropCust}
-                    onChange={(e) => setNewPropCust(e.target.value)}
-                    placeholder="e.g. Acme Corp"
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl px-4 py-2 text-sm mt-1"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-400 uppercase">Proposal Response Text</label>
-                  <textarea
-                    rows={4}
-                    value={newPropContent}
-                    onChange={(e) => setNewPropContent(e.target.value)}
-                    placeholder="Enter historical proposal submission text..."
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-100 rounded-xl p-3 text-sm mt-1"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    onClick={() => setShowAddProposalModal(false)}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCreateProposal}
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-indigo-500/20"
-                  >
-                    Add Proposal & Index Sections
-                  </button>
-                </div>
               </div>
             </div>
           </div>

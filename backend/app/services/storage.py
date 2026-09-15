@@ -1,7 +1,7 @@
 import boto3
 from botocore.config import Config
 from fastapi import HTTPException, status
-from typing import Tuple
+from typing import Tuple, Optional
 import hashlib
 import os
 
@@ -71,6 +71,94 @@ def validate_uploaded_file(filename: str, declared_content_type: str, content_by
 
     return expected_doc_type, checksum
 
+
+class LocalStorageService:
+    def __init__(self, storage_dir: Optional[str] = None):
+        self.storage_dir = storage_dir or settings.LOCAL_STORAGE_DIR
+        os.makedirs(self.storage_dir, exist_ok=True)
+
+    def _resolve_path(self, storage_key: str) -> str:
+        """
+        Secure path resolution preventing path traversal attacks.
+        Checks that target_path stays strictly within base_dir.
+        """
+        if not storage_key or os.path.isabs(storage_key) or storage_key.startswith("/") or storage_key.startswith("\\"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid storage key: path traversal detected."
+            )
+
+        parts = os.path.normpath(storage_key).split(os.sep)
+        if ".." in parts:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid storage key: path traversal detected."
+            )
+
+        base_dir = os.path.abspath(self.storage_dir)
+        target_path = os.path.abspath(os.path.join(base_dir, storage_key))
+
+        if not (target_path.startswith(base_dir + os.sep) or target_path == base_dir):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid storage key: path traversal detected."
+            )
+        return target_path
+
+    def upload_file_bytes(self, storage_key: str, content_bytes: bytes, content_type: str) -> bool:
+        target_path = self._resolve_path(storage_key)
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        try:
+            with open(target_path, "wb") as f:
+                f.write(content_bytes)
+            return True
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Local storage upload failed: {str(e)}"
+            )
+
+    def get_file_bytes(self, storage_key: str) -> bytes:
+        target_path = self._resolve_path(storage_key)
+        if not os.path.exists(target_path) or not os.path.isfile(target_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"File not found in local storage: {storage_key}"
+            )
+        try:
+            with open(target_path, "rb") as f:
+                return f.read()
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to read file from local storage: {str(e)}"
+            )
+
+    def generate_presigned_download_url(self, storage_key: str, expires_in: int = 3600) -> str:
+        self._resolve_path(storage_key)
+        clean_key = storage_key.lstrip("/").lstrip("\\")
+        return f"/api/v1/storage/files/{clean_key}"
+
+    def file_exists(self, storage_key: str) -> bool:
+        try:
+            target_path = self._resolve_path(storage_key)
+            return os.path.exists(target_path) and os.path.isfile(target_path)
+        except Exception:
+            return False
+
+    def delete_file(self, storage_key: str) -> bool:
+        try:
+            target_path = self._resolve_path(storage_key)
+            if os.path.exists(target_path) and os.path.isfile(target_path):
+                os.remove(target_path)
+                return True
+            return False
+        except Exception:
+            return False
+
+
 class R2StorageService:
     def __init__(self):
         endpoint_url = settings.R2_ENDPOINT_URL or (
@@ -79,7 +167,7 @@ class R2StorageService:
             else None
         )
         self.bucket_name = settings.R2_BUCKET_NAME
-        
+
         # Initialize S3 client for Cloudflare R2
         self.s3_client = boto3.client(
             "s3",
@@ -100,10 +188,25 @@ class R2StorageService:
             )
             return True
         except Exception as e:
-            # Handle R2 upload failure
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Storage upload failed: {str(e)}"
+            )
+
+    def get_file_bytes(self, storage_key: str) -> bytes:
+        try:
+            response = self.s3_client.get_object(
+                Bucket=self.bucket_name,
+                Key=storage_key
+            )
+            body = response.get("Body") if isinstance(response, dict) else getattr(response, "Body", None)
+            if hasattr(body, "read"):
+                return body.read()
+            return bytes(body or b"")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to retrieve file from R2 storage: {str(e)}"
             )
 
     def generate_presigned_download_url(self, storage_key: str, expires_in: int = 3600) -> str:
@@ -120,6 +223,13 @@ class R2StorageService:
                 detail=f"Failed to generate download URL: {str(e)}"
             )
 
+    def file_exists(self, storage_key: str) -> bool:
+        try:
+            self.s3_client.head_object(Bucket=self.bucket_name, Key=storage_key)
+            return True
+        except Exception:
+            return False
+
     def delete_file(self, storage_key: str) -> bool:
         try:
             self.s3_client.delete_object(Bucket=self.bucket_name, Key=storage_key)
@@ -127,5 +237,18 @@ class R2StorageService:
         except Exception:
             return False
 
-# Global instance
-storage_service = R2StorageService()
+
+def get_storage_service(provider: Optional[str] = None):
+    prov = (provider or settings.STORAGE_PROVIDER).lower()
+    if prov == "local":
+        return LocalStorageService()
+    elif prov == "r2":
+        return R2StorageService()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unsupported STORAGE_PROVIDER '{prov}'. Allowed options: 'local', 'r2'."
+        )
+
+# Global instance initialized according to STORAGE_PROVIDER setting
+storage_service = get_storage_service()

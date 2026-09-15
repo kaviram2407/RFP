@@ -48,10 +48,13 @@ build/
 *.temp
 
 # ==============================
-# Local databases / runtime
+# Local databases / runtime / storage
 # ==============================
 *.sqlite
 *.sqlite3
+storage/
+backend/storage/
+
 
 # ==============================
 # Test / Coverage
