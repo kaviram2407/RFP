@@ -788,5 +788,177 @@ export async function findEvidenceForRequirementApi(
   );
 }
 
+/* ============================================================================
+   Previous Proposal Intelligence APIs (Phase 8)
+   ============================================================================ */
+
+export type ProposalOutcomeEnum = "WON" | "LOST" | "NO_DECISION" | "UNKNOWN";
+export type ProposalStatusEnum = "DRAFT" | "APPROVED" | "ARCHIVED";
+
+export interface PreviousProposalCreate {
+  title: string;
+  proposal_reference: string;
+  customer_name?: string | null;
+  description?: string | null;
+  proposal_date?: string | null;
+  outcome?: ProposalOutcomeEnum;
+  status?: ProposalStatusEnum;
+  raw_content?: string | null;
+}
+
+export interface PreviousProposalUpdate {
+  title?: string | null;
+  proposal_reference?: string | null;
+  customer_name?: string | null;
+  description?: string | null;
+  proposal_date?: string | null;
+  outcome?: ProposalOutcomeEnum | null;
+  status?: ProposalStatusEnum | null;
+}
+
+export interface PreviousProposalVersionCreate {
+  raw_content: string;
+  original_filename?: string | null;
+}
+
+export interface PreviousProposalVersionResponse {
+  id: string;
+  previous_proposal_id: string;
+  version_number: number;
+  original_filename?: string | null;
+  processing_status: ProcessingStatusEnum;
+  processing_started_at?: string | null;
+  processing_completed_at?: string | null;
+  processing_error?: string | null;
+  created_at: string;
+}
+
+export interface PreviousProposalResponse {
+  id: string;
+  organization_id: string;
+  created_by_id: string;
+  title: string;
+  proposal_reference: string;
+  customer_name?: string | null;
+  description?: string | null;
+  proposal_date?: string | null;
+  outcome: ProposalOutcomeEnum;
+  status: ProposalStatusEnum;
+  created_at: string;
+  updated_at: string;
+  versions: PreviousProposalVersionResponse[];
+}
+
+export interface HistoricalProposalSearchRequest {
+  query: string;
+  top_k?: number;
+  outcome?: ProposalOutcomeEnum;
+  date_from?: string;
+  date_to?: string;
+}
+
+export interface ProposalRetrievalResultResponse {
+  section_id: string;
+  proposal_id: string;
+  proposal_version_id: string;
+  proposal_title: string;
+  proposal_reference: string;
+  customer_name?: string | null;
+  proposal_date?: string | null;
+  outcome: string;
+  status: string;
+  section_title?: string | null;
+  content: string;
+  final_score: number;
+  semantic_score: number;
+  lexical_score: number;
+  recency_score: number;
+  source_metadata?: Record<string, any> | null;
+  source_class: string;
+}
+
+export interface HistoricalProposalSearchResponse {
+  query: string;
+  total: number;
+  results: ProposalRetrievalResultResponse[];
+}
+
+export async function createPreviousProposalApi(
+  data: PreviousProposalCreate
+): Promise<PreviousProposalResponse> {
+  return apiFetch<PreviousProposalResponse>("/api/v1/previous-proposals", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function listPreviousProposalsApi(filters?: {
+  outcome?: ProposalOutcomeEnum;
+  status?: ProposalStatusEnum;
+}): Promise<PreviousProposalResponse[]> {
+  const params = new URLSearchParams();
+  if (filters?.outcome) params.append("outcome", filters.outcome);
+  if (filters?.status) params.append("status", filters.status);
+
+  let url = "/api/v1/previous-proposals";
+  if (params.toString()) {
+    url += `?${params.toString()}`;
+  }
+
+  return apiFetch<PreviousProposalResponse[]>(url);
+}
+
+export async function getPreviousProposalApi(
+  proposalId: string
+): Promise<PreviousProposalResponse> {
+  return apiFetch<PreviousProposalResponse>(`/api/v1/previous-proposals/${proposalId}`);
+}
+
+export async function updatePreviousProposalApi(
+  proposalId: string,
+  data: PreviousProposalUpdate
+): Promise<PreviousProposalResponse> {
+  return apiFetch<PreviousProposalResponse>(`/api/v1/previous-proposals/${proposalId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function addProposalVersionApi(
+  proposalId: string,
+  data: PreviousProposalVersionCreate
+): Promise<PreviousProposalVersionResponse> {
+  return apiFetch<PreviousProposalVersionResponse>(
+    `/api/v1/previous-proposals/${proposalId}/versions`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function searchPreviousProposalsApi(
+  data: HistoricalProposalSearchRequest
+): Promise<HistoricalProposalSearchResponse> {
+  return apiFetch<HistoricalProposalSearchResponse>("/api/v1/previous-proposals/search", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function findPreviousProposalsForRequirementApi(
+  projectId: string,
+  requirementId: string,
+  topK: number = 5
+): Promise<HistoricalProposalSearchResponse> {
+  return apiFetch<HistoricalProposalSearchResponse>(
+    `/api/v1/rfp-projects/${projectId}/requirements/${requirementId}/find-previous-proposals?top_k=${topK}`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+
 
 

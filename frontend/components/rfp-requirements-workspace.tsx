@@ -16,6 +16,9 @@ import {
   getRequirementEvidenceApi,
   updateRequirementApi,
   RequirementUpdate,
+  findPreviousProposalsForRequirementApi,
+  HistoricalProposalSearchResponse,
+  ProposalRetrievalResultResponse,
 } from "@/lib/api-client";
 
 interface RFPRequirementsWorkspaceProps {
@@ -84,6 +87,36 @@ export default function RFPRequirementsWorkspace({
   const [editForm, setEditForm] = useState<RequirementUpdate>({});
   const [editSubmitting, setEditSubmitting] = useState<boolean>(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Requirement-Specific Previous Proposal Search State
+  const [showProposalSearchModal, setShowProposalSearchModal] = useState<boolean>(false);
+  const [proposalSearchReq, setProposalSearchReq] = useState<RequirementResponse | null>(null);
+  const [proposalSearchResults, setProposalSearchResults] = useState<HistoricalProposalSearchResponse | null>(null);
+  const [searchingProposals, setSearchingProposals] = useState<boolean>(false);
+  const [proposalSearchError, setProposalSearchError] = useState<string | null>(null);
+  const [copiedPropSecId, setCopiedPropSecId] = useState<string | null>(null);
+
+  const handleFindPreviousProposals = async (req: RequirementResponse) => {
+    setProposalSearchReq(req);
+    setShowProposalSearchModal(true);
+    setSearchingProposals(true);
+    setProposalSearchError(null);
+    setProposalSearchResults(null);
+    try {
+      const results = await findPreviousProposalsForRequirementApi(projectId, req.id, 5);
+      setProposalSearchResults(results);
+    } catch (err: any) {
+      setProposalSearchError(err?.detail || err.message || "Failed to search previous proposals for requirement.");
+    } finally {
+      setSearchingProposals(false);
+    }
+  };
+
+  const handleCopyProposalSec = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedPropSecId(id);
+    setTimeout(() => setCopiedPropSecId(null), 2000);
+  };
 
   // 1. Fetch Requirements List
   const fetchRequirements = useCallback(async () => {
@@ -547,6 +580,15 @@ export default function RFPRequirementsWorkspace({
                           Evidence
                         </button>
 
+                        {/* Find Previous Proposals Button */}
+                        <button
+                          onClick={() => handleFindPreviousProposals(req)}
+                          className="px-2.5 py-1 bg-amber-950/60 hover:bg-amber-900 border border-amber-800/80 text-amber-300 font-semibold text-[11px] rounded-lg transition flex items-center gap-1"
+                          title="Find Matching Historical Proposals"
+                        >
+                          <span>📚</span> Historical Matches
+                        </button>
+
                         {/* Quick Accept (Product Team) */}
                         {isProductTeam && req.status !== "ACCEPTED" && (
                           <button
@@ -805,6 +847,143 @@ export default function RFPRequirementsWorkspace({
               </div>
 
             </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================
+          REQUIREMENT-SPECIFIC PREVIOUS PROPOSAL MATCHES MODAL
+         ======================================================================== */}
+      {showProposalSearchModal && proposalSearchReq && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-3xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            
+            <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono font-bold text-amber-400">
+                    {proposalSearchReq.requirement_code}
+                  </span>
+                  <h3 className="text-base font-bold text-white">
+                    Historical Proposal Matches: {proposalSearchReq.title}
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Requirement: {proposalSearchReq.description.slice(0, 120)}...
+                </p>
+              </div>
+              <button
+                onClick={() => setShowProposalSearchModal(false)}
+                className="text-slate-400 hover:text-white font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Historical Disclaimer Banner */}
+            <div className="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl text-xs text-amber-300 space-y-1">
+              <div className="font-bold flex items-center gap-1 text-amber-200">
+                <span>⚠️</span> Reference Evidence Only
+              </div>
+              <div>
+                Historical proposal content is past reference material. It is <strong>NOT</strong> authoritative current company truth.
+              </div>
+            </div>
+
+            {proposalSearchError && (
+              <div className="p-3 bg-red-950/60 border border-red-800 text-red-200 text-xs rounded-xl">
+                ⚠️ {proposalSearchError}
+              </div>
+            )}
+
+            {searchingProposals ? (
+              <div className="p-12 text-center text-xs font-mono text-slate-400 space-y-2">
+                <div className="animate-spin text-amber-400 text-lg">⏳</div>
+                <div>Searching historical proposal vector store for requirement matches...</div>
+              </div>
+            ) : proposalSearchResults ? (
+              <div className="space-y-4">
+                <div className="text-xs text-slate-400 flex justify-between items-center">
+                  <span>Found <strong>{proposalSearchResults.total}</strong> historical section matches</span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    Endpoint: /api/v1/rfp-projects/{projectId.slice(0, 8)}.../find-previous-proposals
+                  </span>
+                </div>
+
+                {proposalSearchResults.results.length === 0 ? (
+                  <div className="p-8 text-center border border-dashed border-slate-800 rounded-xl text-xs text-slate-500">
+                    No historical proposal sections matched this specific requirement.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {proposalSearchResults.results.map((res: ProposalRetrievalResultResponse, index: number) => (
+                      <div key={res.section_id || index} className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+                        <div className="flex justify-between items-start border-b border-slate-800/80 pb-2">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              {res.outcome && (
+                                <span className={`px-1.5 py-0.5 text-[9px] font-mono font-bold rounded border ${
+                                  res.outcome === "WON"
+                                    ? "bg-emerald-950 text-emerald-300 border-emerald-800"
+                                    : "bg-red-950 text-red-300 border-red-800"
+                                }`}>
+                                  {res.outcome}
+                                </span>
+                              )}
+                              <span className="text-xs font-bold text-slate-200">
+                                {res.proposal_title || "Historical Proposal"}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              Customer: <span className="text-slate-300">{res.customer_name || "N/A"}</span> • Section: <span className="text-amber-300">{res.section_title}</span>
+                            </div>
+                          </div>
+
+                          <div className="text-right text-[10px] font-mono">
+                            <div className="text-amber-400 font-bold">
+                              Match: {Math.round(res.final_score * 100)}%
+                            </div>
+                            {res.recency_score !== undefined && (
+                              <div className="text-slate-500">
+                                Recency: {Math.round(res.recency_score * 100)}%
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-slate-900 rounded-lg text-xs font-mono text-slate-300 leading-relaxed whitespace-pre-wrap">
+                          {res.content}
+                        </div>
+
+                        <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 pt-1">
+                          <div>
+                            Proposal ID: <span className="text-slate-400">{res.proposal_id.slice(0, 8)}...</span>
+                            {res.proposal_version_id && <span className="ml-2">vID: {res.proposal_version_id.slice(0, 6)}</span>}
+                          </div>
+                          <button
+                            onClick={() => handleCopyProposalSec(res.content, res.section_id)}
+                            className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 text-[10px]"
+                          >
+                            {copiedPropSecId === res.section_id ? "Copied Reference Text ✓" : "Copy Reference Text"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <div className="flex justify-end pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowProposalSearchModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition"
+              >
+                Close
+              </button>
+            </div>
 
           </div>
         </div>
