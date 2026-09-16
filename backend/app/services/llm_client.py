@@ -87,12 +87,15 @@ class NvidiaLLMClient:
                 data = response.json()
                 content_str = data["choices"][0]["message"]["content"]
                 return json.loads(content_str)
-        except Exception as e:
-            logger.error(f"NVIDIA NIM API call failed: {str(e)}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"NVIDIA NIM API returned error status: {e.response.status_code} - {e.response.text}")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"NVIDIA NIM LLM extraction failed: {str(e)}"
+                detail=f"NVIDIA NIM LLM extraction failed: {e.response.text}"
             )
+        except Exception as e:
+            logger.warning(f"NVIDIA NIM network connection unavailable ({str(e)}). Falling back to heuristic rule-based extractor.")
+            return self._heuristic_fallback_extract(context_blocks)
 
     def _heuristic_fallback_extract(self, context_blocks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """

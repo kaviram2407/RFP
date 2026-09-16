@@ -8,3 +8,4 @@ from app.models.rfp_document import RFPDocument, DocumentVersion, DocumentConten
 from app.models.requirement import Requirement, RequirementEvidence
 from app.models.company_knowledge import CompanyKnowledgeDocument, KnowledgeDocumentVersion, KnowledgeChunk
 from app.models.previous_proposal import PreviousProposal, PreviousProposalVersion, PreviousProposalSection
+from app.models.compliance import ComplianceAssessment, ComplianceEvidence, GapAnalysis, RiskAnalysis

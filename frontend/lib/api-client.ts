@@ -959,6 +959,50 @@ export async function findPreviousProposalsForRequirementApi(
   );
 }
 
+export async function triggerComplianceAssessmentApi(projectId: string): Promise<any> {
+  return apiFetch<any>(`/api/v1/rfp-projects/${projectId}/compliance-assessment`, {
+    method: "POST",
+  });
+}
+
+export async function getComplianceAssessmentStatusApi(projectId: string): Promise<any> {
+  return apiFetch<any>(`/api/v1/rfp-projects/${projectId}/compliance-assessment/status`);
+}
+
+export async function listComplianceAssessmentsApi(
+  projectId: string,
+  statusFilter?: string,
+  reviewRequired?: boolean
+): Promise<any[]> {
+  const params = new URLSearchParams();
+  if (statusFilter && statusFilter !== "ALL") params.append("status", statusFilter);
+  if (reviewRequired !== undefined) params.append("review_required", String(reviewRequired));
+
+  let url = `/api/v1/rfp-projects/${projectId}/compliance-assessments`;
+  if (params.toString()) url += `?${params.toString()}`;
+
+  return apiFetch<any[]>(url);
+}
+
+export async function getRequirementComplianceApi(
+  projectId: string,
+  requirementId: string
+): Promise<any> {
+  return apiFetch<any>(`/api/v1/rfp-projects/${projectId}/requirements/${requirementId}/compliance`);
+}
+
+export async function updateRequirementComplianceReviewApi(
+  projectId: string,
+  requirementId: string,
+  data: { status?: string; review_status?: string; reviewer_comments?: string }
+): Promise<any> {
+  return apiFetch<any>(`/api/v1/rfp-projects/${projectId}/requirements/${requirementId}/compliance`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+
 
 
 

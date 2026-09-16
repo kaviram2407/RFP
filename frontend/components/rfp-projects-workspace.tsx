@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../lib/auth-context";
 import RFPDocumentsWorkspace from "./rfp-documents-workspace";
 import RFPRequirementsWorkspace from "./rfp-requirements-workspace";
+import { ComplianceWorkspace } from "./compliance-workspace";
 import {
   RFPProjectResponse,
   ProjectStatusEnum,
@@ -377,6 +378,9 @@ export function RFPProjectsWorkspace() {
             projectName={selectedProject.name}
             userRole={user?.role || "VP"}
           />
+
+          {/* Real Phase 9 Compliance & Risk Matrix Workspace */}
+          <ComplianceWorkspace projectId={selectedProject.id} />
         </div>
 
       ) : (

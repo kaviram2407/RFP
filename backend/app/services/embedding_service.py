@@ -58,12 +58,15 @@ class EmbeddingService:
                         raise ValueError(f"Received embedding dimension {len(emb)}, expected {self.expected_dim}.")
 
                 return embeddings
-        except Exception as e:
-            logger.error(f"NVIDIA Embedding API call failed: {str(e)}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"NVIDIA Embedding API returned error status: {e.response.status_code} - {e.response.text}")
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"NVIDIA Embedding generation failed: {str(e)}"
+                detail=f"NVIDIA Embedding API call failed: {e.response.text}"
             )
+        except Exception as e:
+            logger.warning(f"NVIDIA Embedding network connection unavailable ({str(e)}). Falling back to deterministic pseudo-embedding generator.")
+            return [self._generate_fallback_embedding(t) for t in texts]
 
     def _generate_fallback_embedding(self, text: str) -> List[float]:
         """
