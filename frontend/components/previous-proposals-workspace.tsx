@@ -12,7 +12,7 @@ import {
   HistoricalProposalSearchResponse,
   ProposalRetrievalResultResponse,
   ProposalOutcomeEnum,
-  ProposalStatusEnum,
+  PreviousProposalStatusEnum,
   PreviousProposalCreate,
   PreviousProposalVersionCreate,
 } from "../lib/api-client";
@@ -44,7 +44,7 @@ export function PreviousProposalsWorkspace({
   const [newPropRef, setNewPropRef] = useState<string>("");
   const [newDescription, setNewDescription] = useState<string>("");
   const [newOutcome, setNewOutcome] = useState<ProposalOutcomeEnum>("WON");
-  const [newStatus, setNewStatus] = useState<ProposalStatusEnum>("APPROVED");
+  const [newStatus, setNewStatus] = useState<PreviousProposalStatusEnum>("APPROVED");
   const [newRawContent, setNewRawContent] = useState<string>("");
 
   // Detail View State
@@ -76,7 +76,7 @@ export function PreviousProposalsWorkspace({
     setListError(null);
     try {
       const outcome = outcomeFilter !== "ALL" ? (outcomeFilter as ProposalOutcomeEnum) : undefined;
-      const status = statusFilter !== "ALL" ? (statusFilter as ProposalStatusEnum) : undefined;
+      const status = statusFilter !== "ALL" ? (statusFilter as PreviousProposalStatusEnum) : undefined;
       const data = await listPreviousProposalsApi({
         outcome,
         status,
@@ -589,7 +589,7 @@ export function PreviousProposalsWorkspace({
                   <label className="text-slate-400 font-semibold uppercase">Approval Status</label>
                   <select
                     value={newStatus}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewStatus(e.target.value as ProposalStatusEnum)}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewStatus(e.target.value as PreviousProposalStatusEnum)}
                     className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500"
                   >
                     <option value="APPROVED">APPROVED (Indexable)</option>

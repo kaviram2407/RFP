@@ -793,7 +793,7 @@ export async function findEvidenceForRequirementApi(
    ============================================================================ */
 
 export type ProposalOutcomeEnum = "WON" | "LOST" | "NO_DECISION" | "UNKNOWN";
-export type ProposalStatusEnum = "DRAFT" | "APPROVED" | "ARCHIVED";
+export type PreviousProposalStatusEnum = "DRAFT" | "APPROVED" | "ARCHIVED";
 
 export interface PreviousProposalCreate {
   title: string;
@@ -802,7 +802,7 @@ export interface PreviousProposalCreate {
   description?: string | null;
   proposal_date?: string | null;
   outcome?: ProposalOutcomeEnum;
-  status?: ProposalStatusEnum;
+  status?: PreviousProposalStatusEnum;
   raw_content?: string | null;
 }
 
@@ -813,7 +813,7 @@ export interface PreviousProposalUpdate {
   description?: string | null;
   proposal_date?: string | null;
   outcome?: ProposalOutcomeEnum | null;
-  status?: ProposalStatusEnum | null;
+  status?: PreviousProposalStatusEnum | null;
 }
 
 export interface PreviousProposalVersionCreate {
@@ -843,7 +843,7 @@ export interface PreviousProposalResponse {
   description?: string | null;
   proposal_date?: string | null;
   outcome: ProposalOutcomeEnum;
-  status: ProposalStatusEnum;
+  status: PreviousProposalStatusEnum;
   created_at: string;
   updated_at: string;
   versions: PreviousProposalVersionResponse[];
@@ -894,7 +894,7 @@ export async function createPreviousProposalApi(
 
 export async function listPreviousProposalsApi(filters?: {
   outcome?: ProposalOutcomeEnum;
-  status?: ProposalStatusEnum;
+  status?: PreviousProposalStatusEnum;
 }): Promise<PreviousProposalResponse[]> {
   const params = new URLSearchParams();
   if (filters?.outcome) params.append("outcome", filters.outcome);
@@ -1001,6 +1001,213 @@ export async function updateRequirementComplianceReviewApi(
     body: JSON.stringify(data),
   });
 }
+
+/* ============================================================================
+   PHASE 10 — PROPOSAL GENERATION API CLIENT
+   ============================================================================ */
+
+export type ProposalStatusEnum = "DRAFT" | "GENERATING" | "GENERATED" | "IN_REVIEW" | "FINALIZED";
+export type GenerationStatusEnum = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+export type SectionReviewStatusEnum = "PENDING_REVIEW" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "NEEDS_REVISION";
+
+export interface GeneratedContentEvidenceResponse {
+  id: string;
+  organization_id: string;
+  proposal_section_id: string;
+  source_type: string;
+  source_id?: string | null;
+  source_title: string;
+  citation_reference: string;
+  evidence_text: string;
+  relevance_score: number;
+  authority_level: string;
+  is_conflicting: boolean;
+  conflict_notes?: string | null;
+  created_at: string;
+}
+
+export interface UnsupportedClaimResponse {
+  id: string;
+  organization_id: string;
+  proposal_section_id: string;
+  claim: string;
+  reason: string;
+  severity: string;
+  review_required: boolean;
+  created_at: string;
+}
+
+export interface ProposalSectionResponse {
+  id: string;
+  organization_id: string;
+  proposal_id: string;
+  proposal_version_id: string;
+  section_key: string;
+  section_title: string;
+  section_order: number;
+  content: string;
+  ai_generated_content?: string | null;
+  status: ProposalStatusEnum;
+  generation_status: GenerationStatusEnum;
+  review_status: SectionReviewStatusEnum;
+  confidence_score: number;
+  review_required: boolean;
+  reviewer_comments?: string | null;
+  reviewed_by_id?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  evidence_list: GeneratedContentEvidenceResponse[];
+  unsupported_claims: UnsupportedClaimResponse[];
+  requirement_ids: string[];
+}
+
+export interface ProposalVersionResponse {
+  id: string;
+  organization_id: string;
+  proposal_id: string;
+  version_number: number;
+  status: ProposalStatusEnum;
+  generation_status: GenerationStatusEnum;
+  generation_started_at?: string | null;
+  generation_completed_at?: string | null;
+  generation_error?: string | null;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+  sections: ProposalSectionResponse[];
+}
+
+export interface ProposalResponse {
+  id: string;
+  organization_id: string;
+  rfp_project_id: string;
+  title: string;
+  description?: string | null;
+  status: ProposalStatusEnum;
+  current_version_id?: string | null;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+  current_version?: ProposalVersionResponse | null;
+}
+
+export async function createProposalApi(
+  projectId: string,
+  title: string,
+  description?: string,
+  customSections?: any[]
+): Promise<ProposalResponse> {
+  return apiFetch<ProposalResponse>(`/api/v1/rfp-projects/${projectId}/proposals`, {
+    method: "POST",
+    body: JSON.stringify({ title, description, custom_sections: customSections }),
+  });
+}
+
+export async function listProposalsApi(projectId: string): Promise<ProposalResponse[]> {
+  return apiFetch<ProposalResponse[]>(`/api/v1/rfp-projects/${projectId}/proposals`);
+}
+
+export async function getProposalApi(proposalId: string): Promise<ProposalResponse> {
+  return apiFetch<ProposalResponse>(`/api/v1/proposals/${proposalId}`);
+}
+
+export async function createProposalVersionApi(
+  proposalId: string,
+  copyFromVersionId?: string
+): Promise<ProposalVersionResponse> {
+  return apiFetch<ProposalVersionResponse>(`/api/v1/proposals/${proposalId}/versions`, {
+    method: "POST",
+    body: JSON.stringify({ copy_from_version_id: copyFromVersionId }),
+  });
+}
+
+export async function listProposalVersionsApi(proposalId: string): Promise<ProposalVersionResponse[]> {
+  return apiFetch<ProposalVersionResponse[]>(`/api/v1/proposals/${proposalId}/versions`);
+}
+
+export async function generateProposalVersionApi(
+  proposalId: string,
+  versionId: string
+): Promise<ProposalVersionResponse> {
+  return apiFetch<ProposalVersionResponse>(`/api/v1/proposals/${proposalId}/versions/${versionId}/generate`, {
+    method: "POST",
+  });
+}
+
+export async function generateProposalSectionApi(
+  proposalId: string,
+  versionId: string,
+  sectionId: string
+): Promise<ProposalSectionResponse> {
+  return apiFetch<ProposalSectionResponse>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/sections/${sectionId}/generate`,
+    { method: "POST" }
+  );
+}
+
+export async function regenerateProposalSectionApi(
+  proposalId: string,
+  versionId: string,
+  sectionId: string
+): Promise<ProposalSectionResponse> {
+  return apiFetch<ProposalSectionResponse>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/sections/${sectionId}/regenerate`,
+    { method: "POST" }
+  );
+}
+
+export async function getProposalSectionApi(
+  proposalId: string,
+  versionId: string,
+  sectionId: string
+): Promise<ProposalSectionResponse> {
+  return apiFetch<ProposalSectionResponse>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/sections/${sectionId}`
+  );
+}
+
+export async function updateProposalSectionApi(
+  proposalId: string,
+  versionId: string,
+  sectionId: string,
+  data: {
+    section_title?: string;
+    section_order?: number;
+    content?: string;
+    review_status?: SectionReviewStatusEnum;
+    reviewer_comments?: string;
+  }
+): Promise<ProposalSectionResponse> {
+  return apiFetch<ProposalSectionResponse>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/sections/${sectionId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function getProposalSectionEvidenceApi(
+  proposalId: string,
+  versionId: string,
+  sectionId: string
+): Promise<GeneratedContentEvidenceResponse[]> {
+  return apiFetch<GeneratedContentEvidenceResponse[]>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/sections/${sectionId}/evidence`
+  );
+}
+
+export async function getProposalSectionClaimsApi(
+  proposalId: string,
+  versionId: string,
+  sectionId: string
+): Promise<UnsupportedClaimResponse[]> {
+  return apiFetch<UnsupportedClaimResponse[]>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/sections/${sectionId}/claims`
+  );
+}
+
 
 
 

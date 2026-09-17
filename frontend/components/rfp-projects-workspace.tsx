@@ -5,6 +5,7 @@ import { useAuth } from "../lib/auth-context";
 import RFPDocumentsWorkspace from "./rfp-documents-workspace";
 import RFPRequirementsWorkspace from "./rfp-requirements-workspace";
 import { ComplianceWorkspace } from "./compliance-workspace";
+import { ProposalGenerationWorkspace } from "./proposal-generation-workspace";
 import {
   RFPProjectResponse,
   ProjectStatusEnum,
@@ -381,6 +382,13 @@ export function RFPProjectsWorkspace() {
 
           {/* Real Phase 9 Compliance & Risk Matrix Workspace */}
           <ComplianceWorkspace projectId={selectedProject.id} />
+
+          {/* Real Phase 10 AI Proposal Generation Workspace */}
+          <ProposalGenerationWorkspace
+            projectId={selectedProject.id}
+            projectName={selectedProject.name}
+            userRole={user?.role || "VP"}
+          />
         </div>
 
       ) : (
