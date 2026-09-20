@@ -34,7 +34,11 @@ from app.schemas.proposal import (
 )
 from app.services.proposal_generation import proposal_generation_service
 
+from app.core.rate_limit import rate_limit_dependency
+
 router = APIRouter()
+
+ai_rate_limiter = rate_limit_dependency("ai_gen", "RATE_LIMIT_AI")
 
 DEFAULT_PROPOSAL_SECTIONS = [
     {"key": "executive_summary", "title": "1. Executive Summary", "order": 1},
@@ -330,7 +334,11 @@ def list_proposal_versions(
     return [_build_version_response(v, db) for v in versions]
 
 
-@router.post("/proposals/{proposal_id}/versions/{version_id}/generate", response_model=ProposalVersionResponse)
+@router.post(
+    "/proposals/{proposal_id}/versions/{version_id}/generate",
+    response_model=ProposalVersionResponse,
+    dependencies=[Depends(ai_rate_limiter)]
+)
 def generate_proposal_version(
     proposal_id: uuid.UUID,
     version_id: uuid.UUID,
@@ -374,7 +382,11 @@ def generate_proposal_version(
     return _build_version_response(version, db)
 
 
-@router.post("/proposals/{proposal_id}/versions/{version_id}/sections/{section_id}/generate", response_model=ProposalSectionResponse)
+@router.post(
+    "/proposals/{proposal_id}/versions/{version_id}/sections/{section_id}/generate",
+    response_model=ProposalSectionResponse,
+    dependencies=[Depends(ai_rate_limiter)]
+)
 def generate_proposal_section(
     proposal_id: uuid.UUID,
     version_id: uuid.UUID,

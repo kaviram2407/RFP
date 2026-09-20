@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_LOGIN: str = "10/minute"
+    RATE_LIMIT_AI: str = "20/minute"
+
     # Storage Provider Configuration (local vs r2)
     STORAGE_PROVIDER: str = "local"  # "local" or "r2"
     LOCAL_STORAGE_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "storage")

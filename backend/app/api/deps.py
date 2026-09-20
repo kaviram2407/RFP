@@ -20,6 +20,8 @@ def get_db() -> Generator:
     finally:
         db.close()
 
+from app.core.redis import is_jti_revoked
+
 def get_current_user(
     db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)
 ) -> User:
@@ -27,6 +29,14 @@ def get_current_user(
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )
+        jti: str = payload.get("jti")
+        if jti and is_jti_revoked(jti):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         user_id_str: str = payload.get("sub")
         if user_id_str is None:
             raise HTTPException(

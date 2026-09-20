@@ -13,8 +13,30 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 from fastapi.middleware.cors import CORSMiddleware
 
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi import Request, Response
+
 app = FastAPI(title=settings.APP_NAME)
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: blob:; "
+            "font-src 'self' data:; "
+            "connect-src 'self' http://localhost:8000 ws://localhost:3000 http://localhost:3000; "
+            "frame-ancestors 'none';"
+        )
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

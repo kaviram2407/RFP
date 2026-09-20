@@ -196,9 +196,10 @@ class NvidiaLLMClient:
         if ev_items:
             for ev in ev_items:
                 ev_summary += f"- {ev.get('source_title', 'Source')}: {ev.get('evidence_text', '')[:120]}\n"
+                source_id_str = str(ev.get("source_id")) if ev.get("source_id") is not None else None
                 ev_response_list.append({
                     "source_type": ev.get("source_type", "COMPANY_KNOWLEDGE"),
-                    "source_id": ev.get("source_id"),
+                    "source_id": source_id_str,
                     "source_title": ev.get("source_title", "Authoritative Evidence"),
                     "citation_reference": ev.get("citation_reference", "Doc Ref"),
                     "evidence_text": ev.get("evidence_text", "Evidence grounded text."),
@@ -210,7 +211,7 @@ class NvidiaLLMClient:
                 claims.append({
                     "claim": f"Supported claim regarding {ev.get('source_title', 'capability')}",
                     "support_status": "SUPPORTED",
-                    "evidence_ids": [ev.get("source_id")] if ev.get("source_id") else [],
+                    "evidence_ids": [source_id_str] if source_id_str else [],
                     "requires_review": False
                 })
         else:

@@ -66,6 +66,37 @@ def validate_uploaded_file(filename: str, declared_content_type: str, content_by
             detail=f"File signature validation failed for extension '{ext}'."
         )
 
+    # 4. OpenXML Internal Structure Validation
+    if expected_doc_type in (DocumentTypeEnum.DOCX, DocumentTypeEnum.XLSX, DocumentTypeEnum.PPTX):
+        import io
+        import zipfile
+        try:
+            with zipfile.ZipFile(io.BytesIO(content_bytes), "r") as zf:
+                namelist = set(zf.namelist())
+                if expected_doc_type == DocumentTypeEnum.DOCX:
+                    if not any(name == "word/document.xml" or name.startswith("word/") for name in namelist):
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Invalid OpenXML file structure for DOCX document."
+                        )
+                elif expected_doc_type == DocumentTypeEnum.XLSX:
+                    if not any(name == "xl/workbook.xml" or name.startswith("xl/") for name in namelist):
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Invalid OpenXML file structure for XLSX spreadsheet."
+                        )
+                elif expected_doc_type == DocumentTypeEnum.PPTX:
+                    if not any(name == "ppt/presentation.xml" or name.startswith("ppt/") for name in namelist):
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Invalid OpenXML file structure for PPTX presentation."
+                        )
+        except zipfile.BadZipFile:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Malformed ZIP/OpenXML archive."
+            )
+
     # Calculate SHA256
     checksum = hashlib.sha256(content_bytes).hexdigest()
 
