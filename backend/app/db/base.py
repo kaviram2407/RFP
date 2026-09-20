@@ -9,5 +9,5 @@ from app.models.requirement import Requirement, RequirementEvidence
 from app.models.company_knowledge import CompanyKnowledgeDocument, KnowledgeDocumentVersion, KnowledgeChunk
 from app.models.previous_proposal import PreviousProposal, PreviousProposalVersion, PreviousProposalSection
 from app.models.compliance import ComplianceAssessment, ComplianceEvidence, GapAnalysis, RiskAnalysis
-from app.models.proposal import Proposal, ProposalVersion, ProposalSection, ProposalSectionRequirement, GeneratedContentEvidence, UnsupportedClaim
-
+from app.models.proposal import Proposal, ProposalVersion, ProposalSection, ProposalSectionRequirement, GeneratedContentEvidence, UnsupportedClaim, ProposalApproval
+from app.models.audit import AuditLog

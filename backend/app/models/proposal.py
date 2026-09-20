@@ -11,6 +11,13 @@ class ProposalStatusEnum(str, enum.Enum):
     DRAFT = "DRAFT"
     GENERATING = "GENERATING"
     GENERATED = "GENERATED"
+    SUBMITTED = "SUBMITTED"
+    VP_REVIEW = "VP_REVIEW"
+    CTO_REVIEW = "CTO_REVIEW"
+    CEO_REVIEW = "CEO_REVIEW"
+    CHANGES_REQUESTED = "CHANGES_REQUESTED"
+    REJECTED = "REJECTED"
+    APPROVED = "APPROVED"
     IN_REVIEW = "IN_REVIEW"
     FINALIZED = "FINALIZED"
 
@@ -26,6 +33,16 @@ class SectionReviewStatusEnum(str, enum.Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     NEEDS_REVISION = "NEEDS_REVISION"
+
+class ApprovalStageEnum(str, enum.Enum):
+    VP = "VP"
+    CTO = "CTO"
+    CEO = "CEO"
+
+class ApprovalDecisionEnum(str, enum.Enum):
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    REQUEST_CHANGES = "REQUEST_CHANGES"
 
 class Proposal(Base):
     __tablename__ = "proposal"
@@ -62,6 +79,13 @@ class ProposalVersion(Base):
     generation_started_at = Column(DateTime(timezone=True), nullable=True)
     generation_completed_at = Column(DateTime(timezone=True), nullable=True)
     generation_error = Column(Text, nullable=True)
+
+    # Phase 11 Approval Workflow fields
+    current_stage = Column(String, nullable=True)  # "VP", "CTO", "CEO"
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    is_immutable = Column(Boolean, nullable=False, default=False)
+
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
@@ -74,6 +98,7 @@ class ProposalVersion(Base):
     proposal = relationship("Proposal", foreign_keys=[proposal_id], back_populates="versions")
     created_by = relationship("User", foreign_keys=[created_by_id])
     sections = relationship("ProposalSection", back_populates="version", cascade="all, delete-orphan", order_by="ProposalSection.section_order.asc()")
+    approvals = relationship("ProposalApproval", back_populates="version", cascade="all, delete-orphan", order_by="ProposalApproval.created_at.asc()")
 
 class ProposalSection(Base):
     __tablename__ = "proposal_section"
@@ -157,3 +182,25 @@ class UnsupportedClaim(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     section = relationship("ProposalSection", back_populates="unsupported_claims")
+
+class ProposalApproval(Base):
+    __tablename__ = "proposal_approval"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organization.id"), nullable=False, index=True)
+    proposal_id = Column(UUID(as_uuid=True), ForeignKey("proposal.id"), nullable=False, index=True)
+    proposal_version_id = Column(UUID(as_uuid=True), ForeignKey("proposal_version.id"), nullable=False, index=True)
+
+    reviewer_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False, index=True)
+    reviewer_role = Column(String, nullable=False)  # VP, CTO, CEO
+    stage = Column(String, nullable=False)  # VP, CTO, CEO
+    decision = Column(String, nullable=False)  # APPROVED, REJECTED, REQUEST_CHANGES
+    comment = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    proposal = relationship("Proposal")
+    version = relationship("ProposalVersion", back_populates="approvals")
+    reviewer = relationship("User", foreign_keys=[reviewer_id])
+    organization = relationship("Organization")

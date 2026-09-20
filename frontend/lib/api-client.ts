@@ -1006,7 +1006,18 @@ export async function updateRequirementComplianceReviewApi(
    PHASE 10 — PROPOSAL GENERATION API CLIENT
    ============================================================================ */
 
-export type ProposalStatusEnum = "DRAFT" | "GENERATING" | "GENERATED" | "IN_REVIEW" | "FINALIZED";
+export type ProposalStatusEnum =
+  | "DRAFT"
+  | "GENERATING"
+  | "GENERATED"
+  | "IN_REVIEW"
+  | "FINALIZED"
+  | "VP_REVIEW"
+  | "CTO_REVIEW"
+  | "CEO_REVIEW"
+  | "APPROVED"
+  | "CHANGES_REQUESTED"
+  | "REJECTED";
 export type GenerationStatusEnum = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
 export type SectionReviewStatusEnum = "PENDING_REVIEW" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "NEEDS_REVISION";
 
@@ -1062,6 +1073,32 @@ export interface ProposalSectionResponse {
   requirement_ids: string[];
 }
 
+export interface ProposalApprovalResponse {
+  id: string;
+  organization_id: string;
+  proposal_id: string;
+  proposal_version_id: string;
+  reviewer_id: string;
+  reviewer_name?: string | null;
+  reviewer_role: string;
+  stage: string;
+  decision: string;
+  comment?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalApprovalStatusResponse {
+  proposal_id: string;
+  version_id: string;
+  current_stage?: string | null;
+  current_status: string;
+  is_immutable: boolean;
+  can_user_approve: boolean;
+  user_role: string;
+  history: ProposalApprovalResponse[];
+}
+
 export interface ProposalVersionResponse {
   id: string;
   organization_id: string;
@@ -1072,10 +1109,15 @@ export interface ProposalVersionResponse {
   generation_started_at?: string | null;
   generation_completed_at?: string | null;
   generation_error?: string | null;
+  current_stage?: string | null;
+  submitted_at?: string | null;
+  completed_at?: string | null;
+  is_immutable?: boolean;
   created_by_id: string;
   created_at: string;
   updated_at: string;
   sections: ProposalSectionResponse[];
+  approvals?: ProposalApprovalResponse[];
 }
 
 export interface ProposalResponse {
@@ -1207,6 +1249,65 @@ export async function getProposalSectionClaimsApi(
     `/api/v1/proposals/${proposalId}/versions/${versionId}/sections/${sectionId}/claims`
   );
 }
+
+// Phase 11 — Formal Review and Executive Approval Workflow API functions
+export async function submitProposalVersionForReviewApi(
+  proposalId: string,
+  versionId: string
+): Promise<ProposalVersionResponse> {
+  return apiFetch<ProposalVersionResponse>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/submit`,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function reviewProposalVersionApi(
+  proposalId: string,
+  versionId: string,
+  decision: "APPROVED" | "REJECTED" | "REQUEST_CHANGES",
+  comment?: string
+): Promise<ProposalApprovalResponse> {
+  return apiFetch<ProposalApprovalResponse>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/review`,
+    {
+      method: "POST",
+      body: JSON.stringify({ decision, comment }),
+    }
+  );
+}
+
+export async function getProposalApprovalStatusApi(
+  proposalId: string,
+  versionId: string
+): Promise<ProposalApprovalStatusResponse> {
+  return apiFetch<ProposalApprovalStatusResponse>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/approval-status`
+  );
+}
+
+export async function getProposalApprovalHistoryApi(
+  proposalId: string,
+  versionId: string
+): Promise<ProposalApprovalResponse[]> {
+  return apiFetch<ProposalApprovalResponse[]>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/approval-history`
+  );
+}
+
+export async function createProposalRevisionApi(
+  proposalId: string,
+  versionId: string
+): Promise<ProposalVersionResponse> {
+  return apiFetch<ProposalVersionResponse>(
+    `/api/v1/proposals/${proposalId}/versions/${versionId}/revisions`,
+    {
+      method: "POST",
+    }
+  );
+}
+
 
 
 

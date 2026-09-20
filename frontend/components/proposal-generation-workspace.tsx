@@ -18,6 +18,7 @@ import {
   updateProposalSectionApi,
   ApiError,
 } from "../lib/api-client";
+import { ProposalApprovalWorkflow } from "./proposal-approval-workflow";
 
 interface ProposalGenerationWorkspaceProps {
   projectId: string;
@@ -379,6 +380,18 @@ export function ProposalGenerationWorkspace({
             )}
           </div>
         )}
+
+        {/* Phase 11 Proposal Approval Workflow Header Banner & Actions */}
+        {selectedProposal && selectedVersion && (
+          <ProposalApprovalWorkflow
+            proposalId={selectedProposal.id}
+            version={selectedVersion}
+            userRole={userRole}
+            onVersionUpdated={(updatedVer) => {
+              handleSelectProposal(selectedProposal.id);
+            }}
+          />
+        )}
       </div>
 
       {/* Main Workspace Body */}
@@ -483,8 +496,9 @@ export function ProposalGenerationWorkspace({
                     {isProductTeam && (
                       <button
                         onClick={() => handleGenerateSection(selectedSection.id)}
-                        disabled={generatingSectionId === selectedSection.id}
-                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5 disabled:opacity-50"
+                        disabled={generatingSectionId === selectedSection.id || selectedVersion?.is_immutable}
+                        title={selectedVersion?.is_immutable ? "Version is immutable under review/approved" : "Generate section content"}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition shadow flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {generatingSectionId === selectedSection.id ? (
                           <span>Generating...</span>
@@ -506,7 +520,7 @@ export function ProposalGenerationWorkspace({
                         : "border-transparent text-slate-400 hover:text-white"
                     }`}
                   >
-                    Section Content & Editor
+                    Section Content
                   </button>
 
                   <button
@@ -517,8 +531,8 @@ export function ProposalGenerationWorkspace({
                         : "border-transparent text-slate-400 hover:text-white"
                     }`}
                   >
-                    <span>Evidence & Provenance</span>
-                    <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-slate-800 text-slate-300">
+                    <span>Citations & Evidence</span>
+                    <span className="px-1.5 py-0.2 bg-slate-800 text-slate-300 text-[10px] rounded-full">
                       {selectedSection.evidence_list.length}
                     </span>
                   </button>
@@ -533,7 +547,7 @@ export function ProposalGenerationWorkspace({
                   >
                     <span>Unsupported Claims</span>
                     {selectedSection.unsupported_claims.length > 0 && (
-                      <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-amber-950 text-amber-300 border border-amber-800 font-bold">
+                      <span className="px-1.5 py-0.2 bg-amber-950 text-amber-300 border border-amber-800 text-[10px] rounded-full font-bold">
                         {selectedSection.unsupported_claims.length}
                       </span>
                     )}
@@ -561,15 +575,20 @@ export function ProposalGenerationWorkspace({
                       <textarea
                         rows={14}
                         value={editedContent}
+                        readOnly={selectedVersion?.is_immutable}
                         onChange={(e) => setEditedContent(e.target.value)}
                         placeholder="Click Generate to produce evidence-backed section response using NVIDIA NIM..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500 leading-relaxed"
+                        className={`w-full bg-slate-950 border rounded-xl p-4 text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500 leading-relaxed ${
+                          selectedVersion?.is_immutable ? "border-slate-800 text-slate-400 bg-slate-950/60 cursor-not-allowed" : "border-slate-800"
+                        }`}
                       />
                     </div>
 
                     <div className="flex justify-between items-center pt-2">
                       <span className="text-[11px] text-slate-500 font-mono">
-                        {selectedSection.ai_generated_content
+                        {selectedVersion?.is_immutable
+                          ? "🔒 Section editing is locked because this version is under formal review or approved."
+                          : selectedSection.ai_generated_content
                           ? "✓ Original AI generated content preserved in version history"
                           : "Section pending generation"}
                       </span>
@@ -577,8 +596,9 @@ export function ProposalGenerationWorkspace({
                       {isProductTeam && (
                         <button
                           onClick={handleSaveSectionEdits}
-                          disabled={saveSubmitting}
-                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow transition"
+                          disabled={saveSubmitting || selectedVersion?.is_immutable}
+                          title={selectedVersion?.is_immutable ? "Version is locked" : "Save section changes"}
+                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow transition disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {saveSubmitting ? "Saving..." : "💾 Save Content & Review Status"}
                         </button>

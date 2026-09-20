@@ -7,6 +7,8 @@ from app.models.proposal import (
     ProposalStatusEnum,
     GenerationStatusEnum,
     SectionReviewStatusEnum,
+    ApprovalStageEnum,
+    ApprovalDecisionEnum,
 )
 
 # Evidence Response Schema
@@ -93,6 +95,40 @@ class ProposalSectionResponse(ProposalSectionBase):
     class Config:
         from_attributes = True
 
+# Approval Schemas
+class ProposalApprovalRequest(BaseModel):
+    decision: str = Field(..., description="APPROVED | REJECTED | REQUEST_CHANGES")
+    comment: Optional[str] = None
+
+class ProposalApprovalResponse(BaseModel):
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    proposal_id: uuid.UUID
+    proposal_version_id: uuid.UUID
+    reviewer_id: uuid.UUID
+    reviewer_name: str = ""
+    reviewer_role: str
+    stage: str
+    decision: str
+    comment: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ProposalApprovalStatusResponse(BaseModel):
+    proposal_id: uuid.UUID
+    version_id: uuid.UUID
+    version_number: int
+    current_stage: Optional[str] = None
+    current_status: ProposalStatusEnum
+    submitted_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    is_immutable: bool = False
+    can_user_approve: bool = False
+    user_role: str
+    allowed_actions: List[str] = []
+
 # Proposal Version Schemas
 class ProposalVersionBase(BaseModel):
     version_number: int = 1
@@ -110,11 +146,18 @@ class ProposalVersionResponse(BaseModel):
     generation_started_at: Optional[datetime] = None
     generation_completed_at: Optional[datetime] = None
     generation_error: Optional[str] = None
+    
+    current_stage: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    is_immutable: bool = False
+
     created_by_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
 
     sections: List[ProposalSectionResponse] = []
+    approvals: List[ProposalApprovalResponse] = []
 
     class Config:
         from_attributes = True

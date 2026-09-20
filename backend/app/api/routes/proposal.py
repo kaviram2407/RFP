@@ -14,6 +14,7 @@ from app.models.proposal import (
     ProposalSectionRequirement,
     GeneratedContentEvidence,
     UnsupportedClaim,
+    ProposalApproval,
     ProposalStatusEnum,
     GenerationStatusEnum,
     SectionReviewStatusEnum,
@@ -29,6 +30,7 @@ from app.schemas.proposal import (
     ProposalSectionResponse,
     GeneratedContentEvidenceResponse,
     UnsupportedClaimResponse,
+    ProposalApprovalResponse,
 )
 from app.services.proposal_generation import proposal_generation_service
 
@@ -61,6 +63,19 @@ def _build_version_response(version: ProposalVersion, db: Session) -> ProposalVe
     ).order_by(ProposalSection.section_order.asc()).all()
 
     v_resp.sections = [_build_section_response(sec, db) for sec in sections]
+
+    approvals = db.query(ProposalApproval).filter(
+        ProposalApproval.proposal_version_id == version.id
+    ).order_by(ProposalApproval.created_at.asc()).all()
+
+    app_resps = []
+    for app_obj in approvals:
+        a_res = ProposalApprovalResponse.model_validate(app_obj)
+        if app_obj.reviewer:
+            a_res.reviewer_name = app_obj.reviewer.full_name or app_obj.reviewer.email
+        app_resps.append(a_res)
+
+    v_resp.approvals = app_resps
     return v_resp
 
 def _build_section_response(section: ProposalSection, db: Session) -> ProposalSectionResponse:
@@ -335,6 +350,18 @@ def generate_proposal_version(
     if not version:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal version not found.")
 
+    if version.is_immutable or version.status in (
+        ProposalStatusEnum.VP_REVIEW,
+        ProposalStatusEnum.CTO_REVIEW,
+        ProposalStatusEnum.CEO_REVIEW,
+        ProposalStatusEnum.APPROVED,
+        ProposalStatusEnum.REJECTED
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot generate proposal version while it is under formal review or finalized."
+        )
+
     background_tasks.add_task(
         proposal_generation_service.generate_proposal_version,
         db, version_id, current_user.organization_id
@@ -357,6 +384,27 @@ def generate_proposal_section(
 ):
     if current_user.role != RoleEnum.PRODUCT_TEAM:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only Product Team users can generate sections.")
+
+    version = db.query(ProposalVersion).filter(
+        ProposalVersion.id == version_id,
+        ProposalVersion.proposal_id == proposal_id,
+        ProposalVersion.organization_id == current_user.organization_id
+    ).first()
+
+    if not version:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal version not found.")
+
+    if version.is_immutable or version.status in (
+        ProposalStatusEnum.VP_REVIEW,
+        ProposalStatusEnum.CTO_REVIEW,
+        ProposalStatusEnum.CEO_REVIEW,
+        ProposalStatusEnum.APPROVED,
+        ProposalStatusEnum.REJECTED
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot generate section on a proposal version that is under formal review or finalized."
+        )
 
     section = db.query(ProposalSection).filter(
         ProposalSection.id == section_id,
@@ -416,6 +464,26 @@ def update_proposal_section(
     db: Session = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
+    version = db.query(ProposalVersion).filter(
+        ProposalVersion.id == version_id,
+        ProposalVersion.proposal_id == proposal_id,
+        ProposalVersion.organization_id == current_user.organization_id
+    ).first()
+
+    if not version:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal version not found.")
+
+    if version.is_immutable or version.status in (
+        ProposalStatusEnum.VP_REVIEW,
+        ProposalStatusEnum.CTO_REVIEW,
+        ProposalStatusEnum.CEO_REVIEW,
+        ProposalStatusEnum.APPROVED,
+        ProposalStatusEnum.REJECTED
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot edit section on a proposal version that is under formal review or finalized."
+        )
     section = db.query(ProposalSection).filter(
         ProposalSection.id == section_id,
         ProposalSection.proposal_version_id == version_id,
