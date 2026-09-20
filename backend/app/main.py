@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.api import deps
 import app.db.base
-from app.api.routes import auth, rfp_project, rfp_document, requirement, company_knowledge, previous_proposal, storage, compliance, proposal, approval
+from app.api.routes import auth, rfp_project, rfp_document, requirement, company_knowledge, previous_proposal, storage, compliance, proposal, approval, dashboard
 from app.core.config import settings
 
 import redis
@@ -32,6 +32,7 @@ app.include_router(previous_proposal.router, prefix="/api/v1", tags=["previous-p
 app.include_router(compliance.router, prefix="/api/v1/rfp-projects", tags=["compliance"])
 app.include_router(proposal.router, prefix="/api/v1", tags=["proposals"])
 app.include_router(approval.router, prefix="/api/v1", tags=["approval"])
+app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])
 app.include_router(storage.router, prefix="/api/v1", tags=["storage"])
 
 @app.get("/health")

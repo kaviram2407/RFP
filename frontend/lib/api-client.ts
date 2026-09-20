@@ -1308,6 +1308,78 @@ export async function createProposalRevisionApi(
   );
 }
 
+// Phase 12 — Dashboard & Analytics Interfaces and API
+export interface KpiMetricsResponse {
+  active_rfps_count: number;
+  total_requirements_count: number;
+  accepted_requirements_count: number;
+  compliant_items_count: number;
+  non_compliant_items_count: number;
+  open_gaps_count: number;
+  high_severity_gaps_count: number;
+  total_risks_count: number;
+  critical_high_risks_count: number;
+  proposals_in_progress_count: number;
+  proposals_awaiting_my_review_count: number;
+  approved_proposals_count: number;
+}
+
+export interface DistributionItemResponse {
+  label: string;
+  count: number;
+}
+
+export interface PendingApprovalItemResponse {
+  proposal_id: string;
+  version_id: string;
+  proposal_title: string;
+  rfp_project_id: string;
+  rfp_project_name: string;
+  version_number: number;
+  current_stage: string;
+  status: string;
+  submitted_at?: string | null;
+  created_by_name?: string | null;
+}
+
+export interface DashboardSummaryResponse {
+  user_role: string;
+  organization_id: string;
+  kpis: KpiMetricsResponse;
+  rfp_status_distribution: DistributionItemResponse[];
+  requirement_priority_distribution: DistributionItemResponse[];
+  requirement_category_distribution: DistributionItemResponse[];
+  compliance_status_distribution: DistributionItemResponse[];
+  gap_severity_distribution: DistributionItemResponse[];
+  risk_severity_distribution: DistributionItemResponse[];
+  proposal_stage_distribution: DistributionItemResponse[];
+  approval_queue: PendingApprovalItemResponse[];
+  recent_decisions: ProposalApprovalResponse[];
+}
+
+export async function getDashboardSummaryApi(filters?: {
+  rfp_id?: string;
+  rfp_project_id?: string;
+  status?: string;
+  priority?: string;
+  category?: string;
+  risk_severity?: string;
+  gap_severity?: string;
+}): Promise<DashboardSummaryResponse> {
+  const params = new URLSearchParams();
+  const rfpProjId = filters?.rfp_project_id || filters?.rfp_id;
+  if (rfpProjId) params.append("rfp_project_id", rfpProjId);
+  if (filters?.status) params.append("status", filters.status);
+  if (filters?.priority) params.append("priority", filters.priority);
+  if (filters?.category) params.append("category", filters.category);
+  if (filters?.risk_severity) params.append("risk_severity", filters.risk_severity);
+  if (filters?.gap_severity) params.append("gap_severity", filters.gap_severity);
+
+  const queryString = params.toString();
+  const url = `/api/v1/dashboard/summary${queryString ? `?${queryString}` : ""}`;
+  return apiFetch<DashboardSummaryResponse>(url);
+}
+
 
 
 

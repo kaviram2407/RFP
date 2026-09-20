@@ -6,11 +6,12 @@ import { LoginPage } from "../components/login-page";
 import { RFPProjectsWorkspace } from "../components/rfp-projects-workspace";
 import CompanyKnowledgeWorkspace from "../components/company-knowledge-workspace";
 import { PreviousProposalsWorkspace } from "../components/previous-proposals-workspace";
+import { DashboardWorkspace } from "../components/dashboard-workspace";
 
 export default function RFPPlatformPage() {
   const { user, loading, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<"PROJECTS" | "KNOWLEDGE" | "PROPOSALS" | "PROPOSAL_SEARCH">("PROJECTS");
+  const [activeTab, setActiveTab] = useState<"DASHBOARD" | "PROJECTS" | "KNOWLEDGE" | "PROPOSALS" | "PROPOSAL_SEARCH">("DASHBOARD");
 
   // Loading Screen
   if (loading) {
@@ -84,6 +85,17 @@ export default function RFPPlatformPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-4">
           <div className="flex flex-wrap gap-3">
             <button
+              onClick={() => setActiveTab("DASHBOARD")}
+              className={`px-4 py-2 text-sm font-semibold rounded-xl transition flex items-center gap-2 ${
+                activeTab === "DASHBOARD"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900"
+              }`}
+            >
+              <span>📊</span> Executive & Operational Dashboard
+            </button>
+
+            <button
               onClick={() => setActiveTab("PROJECTS")}
               className={`px-4 py-2 text-sm font-semibold rounded-xl transition flex items-center gap-2 ${
                 activeTab === "PROJECTS"
@@ -128,6 +140,9 @@ export default function RFPPlatformPage() {
             </button>
           </div>
         </div>
+
+        {/* TAB 0: REAL DASHBOARD & ANALYTICS WORKSPACE (Phase 12) */}
+        {activeTab === "DASHBOARD" && <DashboardWorkspace userRole={user.role} />}
 
         {/* TAB 1: REAL RFP PROJECTS WORKSPACE (F2, F3, F4) */}
         {activeTab === "PROJECTS" && <RFPProjectsWorkspace />}
