@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!existingToken) {
       setUser(null);
       setTokenState(null);
+      setError(null);
       setLoading(false);
       return;
     }
@@ -44,12 +45,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       setError(null);
     } catch (err: any) {
-      console.error("Auth initialization failed:", err);
       setUser(null);
       setTokenState(null);
       removeToken();
-      if (err instanceof ApiError && err.status !== 401) {
+      if (err instanceof ApiError && err.status === 401) {
+        // Clear error state on 401 so no persistent stale error banner is shown on login screen
+        setError(null);
+      } else if (err instanceof ApiError) {
         setError(err.detail);
+      } else {
+        setError("Authentication check failed");
       }
     } finally {
       setLoading(false);
